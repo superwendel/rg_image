@@ -1,0 +1,4 @@
+LIBRARY rgi_thumbnail
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE
