@@ -537,22 +537,20 @@ static void test_decode_truncated(void)
 
 static void test_wire_contract(void)
 {
-    uint8_t old_magic[sizeof(k_sample_rgi)];
+    uint8_t bad_magic[sizeof(k_sample_rgi)];
     uint8_t bad_marker[sizeof(k_sample_rgi)];
     uint8_t trailing[sizeof(k_sample_rgi) + 1u];
     uint8_t unaligned[sizeof(k_sample_pixels) + 1u];
 
-    memcpy(old_magic, k_sample_rgi, sizeof(old_magic));
-    old_magic[3] = (uint8_t)'2';
-    TEST_ASSERT(!rg_rgi_read_header(old_magic, sizeof(old_magic), NULL, NULL), "rgi2 rejected");
-    TEST_ASSERT(rg_rgi_decode(old_magic, sizeof(old_magic), unaligned + 1u,
+    memcpy(bad_magic, k_sample_rgi, sizeof(bad_magic));
+    bad_magic[0] = (uint8_t)'x';
+    TEST_ASSERT(!rg_rgi_read_header(bad_magic, sizeof(bad_magic), NULL, NULL), "bad magic rejected");
+    TEST_ASSERT(rg_rgi_decode(bad_magic, sizeof(bad_magic), unaligned + 1u,
                               sizeof(k_sample_pixels), NULL, NULL) == 0u,
-                "checked decode rejects rgi2");
-    TEST_ASSERT(rg_rgi_decode_trusted(old_magic, sizeof(old_magic), unaligned + 1u,
+                "checked decode rejects bad magic");
+    TEST_ASSERT(rg_rgi_decode_trusted(bad_magic, sizeof(bad_magic), unaligned + 1u,
                                       sizeof(k_sample_pixels), NULL, NULL) == 0u,
-                "trusted decode rejects rgi2");
-    old_magic[3] = (uint8_t)'1';
-    TEST_ASSERT(!rg_rgi_read_header(old_magic, sizeof(old_magic), NULL, NULL), "rgi1 rejected");
+                "trusted decode rejects bad magic");
 
     memcpy(bad_marker, k_sample_rgi, sizeof(bad_marker));
     bad_marker[sizeof(bad_marker) - 1u] = 0u;

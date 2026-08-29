@@ -22,7 +22,6 @@ IF /I "%~1"=="test_allocator" GOTO test_allocator
 IF /I "%~1"=="test_tools" GOTO test_tools
 IF /I "%~1"=="example" GOTO example
 IF /I "%~1"=="rgi_convert" GOTO rgi_convert
-IF /I "%~1"=="rgi_migrate" GOTO rgi_migrate
 IF /I "%~1"=="rgi_viewer" GOTO rgi_viewer
 IF /I "%~1"=="rgi_thumbnail" GOTO rgi_thumbnail
 IF /I "%~1"=="tools" GOTO tools
@@ -75,15 +74,8 @@ IF ERRORLEVEL 1 EXIT /B 1
 ECHO Built rgi_convert.exe
 EXIT /B 0
 
-:rgi_migrate
-cl %BASE_FLAGS% %OPT_FLAGS% tools\rgi_migrate.c /Fe:rgi_migrate.exe
-IF ERRORLEVEL 1 EXIT /B 1
-ECHO Built rgi_migrate.exe
-EXIT /B 0
-
 :test_tools
 CALL "%~f0" rgi_convert || EXIT /B 1
-CALL "%~f0" rgi_migrate || EXIT /B 1
 cl %BASE_FLAGS% %OPT_FLAGS% tests\tool_fixture.c /Fe:tool_fixture.exe
 IF ERRORLEVEL 1 EXIT /B 1
 CALL tests\test_tools.bat
@@ -91,7 +83,6 @@ EXIT /B %ERRORLEVEL%
 
 :tools
 CALL "%~f0" rgi_convert || EXIT /B 1
-CALL "%~f0" rgi_migrate || EXIT /B 1
 EXIT /B 0
 
 :rgi_viewer
@@ -129,7 +120,7 @@ EXIT /B %ERRORLEVEL%
 ECHO Usage: build.bat ^<target^>
 ECHO.
 ECHO Tests: test, test_rgi, test_scalar, test_cpp, test_allocator, test_tools
-ECHO Tools: rgi_convert, rgi_migrate, rgi_viewer, rgi_thumbnail, tools
+ECHO Tools: rgi_convert, rgi_viewer, rgi_thumbnail, tools
 ECHO Other: example, bench
 EXIT /B 0
 

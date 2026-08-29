@@ -5,8 +5,6 @@ designed for fast decoding and compact game assets. The canonical extension is
 `.rgi`, the MIME type is `image/rgi`, and all multibyte integers are little-endian.
 
 This document defines the stream identified by the four-byte magic `rgif`.
-Historical private `rgi1`, `rgi2`, and experimental `rgix` streams are not RGI and
-must be rejected by conforming readers.
 
 ## Header
 

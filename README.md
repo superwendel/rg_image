@@ -17,25 +17,31 @@ runtime header.
 
 #include <stdlib.h>
 
-int load_rgi(const void* data, size_t data_size, void** out_pixels,
-             uint32_t* out_width, uint32_t* out_height)
+b32 load_rgi(const void* data, size_t data_size, u8** out_pixels,
+	         u32* out_width, u32* out_height)
 {
-    uint32_t width = 0;
-    uint32_t height = 0;
-    if (!rg_rgi_read_header(data, data_size, &width, &height)) return 0;
+	u32 width = 0;
+	u32 height = 0;
+	if (!rg_rgi_read_header(data, data_size, &width, &height))
+	{
+		return 0;
+	}
 
-    size_t pixel_bytes = (size_t)width * (size_t)height * 4u;
-    void* pixels = malloc(pixel_bytes);
-    if (pixels == NULL) return 0;
+	size_t pixel_bytes = (size_t)width * (size_t)height * 4u;
+	u8* pixels = (u8*)malloc(pixel_bytes);
+	if (pixels == NULL)
+	{
+		return 0;
+	}
 
-    if (rg_rgi_decode(data, data_size, pixels, pixel_bytes,
-                      out_width, out_height) != pixel_bytes)
-    {
-        free(pixels);
-        return 0;
-    }
-    *out_pixels = pixels;
-    return 1;
+	if (rg_rgi_decode(data, data_size, pixels, pixel_bytes,
+	                  out_width, out_height) != pixel_bytes)
+	{
+		free(pixels);
+		return 0;
+	}
+	*out_pixels = pixels;
+	return 1;
 }
 ```
 
@@ -60,9 +66,8 @@ payload profiles. Reuse caller-owned memory with
 paired `RG_RGI_MALLOC`/`RG_RGI_FREE` allocator.
 
 The complete, normative wire contract is in
-[`docs/rgi_format.md`](docs/rgi_format.md). Public streams use `.rgi` and the
-four-byte magic `rgif`; private historical `rgi1`, `rgi2`, and experimental
-`rgix` streams are rejected.
+[`docs/rgi_format.md`](docs/rgi_format.md). RGI streams use `.rgi` and the
+four-byte magic `rgif`.
 
 ## Tools
 
@@ -72,7 +77,6 @@ explicit `RG_CORE_DIR`:
 ```bat
 build.bat test
 build.bat rgi_convert
-build.bat rgi_migrate
 ```
 
 `rgi_convert` converts any pair of PNG, RGI, and QOI files and supports batch
@@ -83,11 +87,6 @@ Outputs are staged beside their destination and atomically replaced.
 
 For recursive directory conversion, the output must be outside the input tree;
 directory symlinks and Windows reparse points are skipped.
-
-`rgi_migrate` performs the one supported historical migration: a strictly
-validated, byte-preserving `rgi2` to `rgif` magic rewrite. It does not support
-RGI1 or RGIX. Run `rgi_migrate --check`, `--in-place`, or feed tracked paths via
-`--in-place-list0`.
 
 Optional `rgi_viewer` and `rgi_thumbnail` targets require SDL3 and Windows,
 respectively. `tools/install_rgi_windows.bat` registers `.rgi`, `image/rgi`, and
@@ -103,19 +102,14 @@ build.bat bench
 ```
 
 The aggregate test covers checked and trusted decode, both profiles, malformed
-streams, workspace encoding, converter/migrator round trips, C++ inclusion, and
+streams, workspace encoding, converter round trips, C++ inclusion, and
 tool builds. The benchmark corpus is generated deterministically in memory and
 compares automatic RGI with QOI; results are machine- and workload-specific, so
 the benchmark prints its seed, corpus dimensions, byte totals, and timing method
 with every run. See [`docs/benchmarks.md`](docs/benchmarks.md) for the exact
 methodology and preparation snapshot.
 
-## Origin and third-party code
-
-The release implementation was curated from `rg-core-lab`. The format baseline
-originated at commit `049c946d871327290709853df49000bd804eb860`, with later tool
-fixes incorporated through the lab snapshot used for this repository. This is a
-source snapshot, not an import of unrelated laboratory history.
+## Third-party code
 
 Tooling vendors stb_image 2.30 and miniz 3.1.0 under their respective permissive
 terms; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Neither library is

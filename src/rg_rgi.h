@@ -9,15 +9,15 @@
 // USAGE:
 //   #include "rg_rgi.h"
 //
-//   uint32_t width = 0;
-//   uint32_t height = 0;
+//   u32 width = 0;
+//   u32 height = 0;
 //   if (!rg_rgi_read_header(data, data_size, &width, &height))
 //   {
 //       return 0;
 //   }
 //
 //   size_t out_size = (size_t)width * (size_t)height * 4u;
-//   uint8_t* pixels = (uint8_t*)malloc(out_size);
+//   u8* pixels = (u8*)malloc(out_size);
 //   size_t written = rg_rgi_decode(data, data_size, pixels, out_size, &width, &height);
 //
 // OPTIONS:

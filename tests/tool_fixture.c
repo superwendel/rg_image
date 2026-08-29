@@ -58,7 +58,7 @@ static int write_file(const char* path, const uint8_t* data, size_t size)
     return ok;
 }
 
-static int generate_rgi_fixtures(void)
+static int generate_rgi_fixture(void)
 {
     enum { WIDTH = 32, HEIGHT = 32 };
     uint8_t pixels[WIDTH * HEIGHT * 4];
@@ -78,13 +78,6 @@ static int generate_rgi_fixtures(void)
     if (encoded == NULL) return 0;
     size_t size = rg_rgi_encode(pixels, WIDTH, HEIGHT, encoded, bound);
     int ok = size > 0u && write_file("build/tool_current.rgi", encoded, size);
-    if (ok)
-    {
-        encoded[3] = (uint8_t)'2';
-        ok = write_file("build/tool_legacy.rgi", encoded, size);
-        encoded[3] = (uint8_t)'1';
-        ok = ok && write_file("build/tool_rgi1.rgi", encoded, size);
-    }
     free(encoded);
     return ok;
 }
@@ -128,7 +121,7 @@ int main(int argc, char** argv)
 {
     if (argc == 2 && strcmp(argv[1], "generate") == 0)
     {
-        return generate_rgi_fixtures() ? 0 : 1;
+        return generate_rgi_fixture() ? 0 : 1;
     }
     if (argc == 5 && strcmp(argv[1], "corrupt-png") == 0)
     {

@@ -4,14 +4,6 @@ CD /D "%~dp0.."
 
 IF NOT EXIST build MKDIR build
 tool_fixture.exe generate || EXIT /B 1
-rgi_migrate.exe --check build\tool_legacy.rgi || EXIT /B 1
-rgi_migrate.exe --in-place build\tool_legacy.rgi || EXIT /B 1
-FC /B build\tool_current.rgi build\tool_legacy.rgi >NUL || EXIT /B 1
-rgi_migrate.exe --in-place build\tool_legacy.rgi || EXIT /B 1
-
-rgi_migrate.exe --check build\tool_rgi1.rgi >NUL 2>NUL
-IF NOT ERRORLEVEL 1 EXIT /B 1
-
 rgi_convert.exe build\tool_current.rgi build\tool.png || EXIT /B 1
 tool_fixture.exe corrupt-png build\tool.png build\tool_bad_crc.png build\tool_bad_adler.png || EXIT /B 1
 rgi_convert.exe build\tool_bad_crc.png build\bad_crc.rgi >NUL 2>NUL
