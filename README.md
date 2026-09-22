@@ -104,15 +104,17 @@ build.bat bench
 The aggregate test covers checked and trusted decode, both profiles, malformed
 streams, workspace encoding, converter round trips, C++ inclusion, and
 tool builds. The benchmark corpus is generated deterministically in memory and
-compares automatic RGI with QOI; results are machine- and workload-specific, so
-the benchmark prints its seed, corpus dimensions, byte totals, and timing method
-with every run. See [`docs/benchmarks.md`](docs/benchmarks.md) for the exact
-methodology and preparation snapshot.
+compares automatic RGI with the QOI reference codec and PNG via stb; results are
+machine- and workload-specific, so the benchmark prints its seed, corpus
+dimensions, byte totals, and timing method with every run. See
+[`docs/benchmarks.md`](docs/benchmarks.md) for the exact methodology and
+preparation snapshot.
 
 ## Third-party code
 
-Tooling vendors stb_image 2.30 and miniz 3.1.0 under their respective permissive
-terms; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Neither library is
+Tooling vendors stb_image 2.30, stb_image_write 1.16, miniz 3.1.0, and the QOI
+reference implementation under their respective permissive terms; see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). None of these libraries is
 part of the public runtime dependency graph.
 
 ## License and trademark
