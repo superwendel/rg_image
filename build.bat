@@ -19,7 +19,9 @@ IF /I "%~1"=="test_rgi" GOTO test_rgi
 IF /I "%~1"=="test_scalar" GOTO test_scalar
 IF /I "%~1"=="test_cpp" GOTO test_cpp
 IF /I "%~1"=="test_allocator" GOTO test_allocator
+IF /I "%~1"=="test_legacy_encode" GOTO test_legacy_encode
 IF /I "%~1"=="test_tools" GOTO test_tools
+IF /I "%~1"=="test_viewer" GOTO test_viewer
 IF /I "%~1"=="example" GOTO example
 IF /I "%~1"=="rgi_convert" GOTO rgi_convert
 IF /I "%~1"=="rgi_viewer" GOTO rgi_viewer
@@ -38,6 +40,7 @@ CALL "%~f0" test_rgi || EXIT /B 1
 CALL "%~f0" test_scalar || EXIT /B 1
 CALL "%~f0" test_cpp || EXIT /B 1
 CALL "%~f0" test_allocator || EXIT /B 1
+CALL "%~f0" test_legacy_encode || EXIT /B 1
 CALL "%~f0" example || EXIT /B 1
 CALL "%~f0" test_tools || EXIT /B 1
 ECHO All rg_image tests passed.
@@ -90,7 +93,7 @@ EXIT /B %ERRORLEVEL%
 CALL "%~f0" rgi_convert || EXIT /B 1
 EXIT /B 0
 
-:rgi_viewer
+:setup_sdl3
 IF NOT DEFINED SDL3_DIR FOR /D %%I IN ("C:\libs\SDL3-*") DO IF NOT DEFINED SDL3_DIR SET "SDL3_DIR=%%I"
 IF NOT DEFINED SDL3_DIR (
     ECHO SDL3 not found. Set SDL3_DIR to an SDL3 development package.
@@ -101,12 +104,31 @@ IF NOT EXIST "%SDL3_DIR%\include\SDL3\SDL.h" (
     EXIT /B 1
 )
 IF NOT DEFINED TARGET_ARCH SET "TARGET_ARCH=x64"
+IF NOT EXIST "%SDL3_DIR%\lib\%TARGET_ARCH%\SDL3.lib" (
+    ECHO SDL3 library not found for %TARGET_ARCH% under "%SDL3_DIR%".
+    EXIT /B 1
+)
+EXIT /B 0
+
+:rgi_viewer
+CALL :setup_sdl3 || EXIT /B 1
 cl %BASE_FLAGS% %OPT_FLAGS% tools\rgi_viewer.c /Fe:rgi_viewer.exe ^
     /I "%SDL3_DIR%\include" ^
     /link /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup /LIBPATH:"%SDL3_DIR%\lib\%TARGET_ARCH%" SDL3.lib Shell32.lib Advapi32.lib
 IF ERRORLEVEL 1 EXIT /B 1
 ECHO Built rgi_viewer.exe
 EXIT /B 0
+
+:test_viewer
+CALL :setup_sdl3 || EXIT /B 1
+IF NOT EXIST build MKDIR build
+cl %BASE_FLAGS% %OPT_FLAGS% tests\test_rgi_viewer.c /Fe:rg_rgi_test_viewer.exe ^
+    /I "%SDL3_DIR%\include" ^
+    /link /LIBPATH:"%SDL3_DIR%\lib\%TARGET_ARCH%" SDL3.lib Shell32.lib Advapi32.lib
+IF ERRORLEVEL 1 EXIT /B 1
+SET "PATH=%SDL3_DIR%\lib\%TARGET_ARCH%;%SDL3_DIR%\bin\%TARGET_ARCH%;%PATH%"
+rg_rgi_test_viewer.exe
+EXIT /B %ERRORLEVEL%
 
 :rgi_thumbnail
 cl %BASE_FLAGS% %OPT_FLAGS% /LD tools\rgi_thumbnail_provider.c /Fe:rgi_thumbnail.dll ^
@@ -117,6 +139,16 @@ EXIT /B 0
 
 :bench
 python benchmarks\run.py %* --no-libpng
+EXIT /B %ERRORLEVEL%
+
+:test_legacy_encode
+cl %BASE_FLAGS% %OPT_FLAGS% /DRG_RGI_NO_PALETTE_ENCODE tests\test_rgi.c /Fe:rg_rgi_test_legacy.exe
+IF ERRORLEVEL 1 EXIT /B 1
+rg_rgi_test_legacy.exe
+IF ERRORLEVEL 1 EXIT /B 1
+cl %BASE_FLAGS% %OPT_FLAGS% /DRG_RGI_NO_PALETTE_ENCODE tests\test_rgi_allocator.c /Fe:rg_rgi_test_allocator_legacy.exe
+IF ERRORLEVEL 1 EXIT /B 1
+rg_rgi_test_allocator_legacy.exe
 EXIT /B %ERRORLEVEL%
 
 :bench_external
@@ -130,7 +162,7 @@ EXIT /B %ERRORLEVEL%
 :help
 ECHO Usage: build.bat ^<target^>
 ECHO.
-ECHO Tests: test, test_rgi, test_scalar, test_cpp, test_allocator, test_tools
+ECHO Tests: test, test_rgi, test_scalar, test_cpp, test_allocator, test_tools, test_viewer
 ECHO Tools: rgi_convert, rgi_viewer, rgi_thumbnail, tools
 ECHO Benchmarks: bench, bench_corpus, bench_gpu, bench_profile
 ECHO Benchmark checks: test_bench, test_gpu

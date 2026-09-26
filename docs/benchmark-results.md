@@ -1,11 +1,16 @@
 # Pixel-art performance results
 
-The retained change speeds encoding without changing the decoder, wire format,
+> Historical report: this measures the initial profile-0/1 encoder optimization,
+> before profile 2 was added. For the current codec, palette results, full public
+> corpus, and native game assets, see the [optimization follow-up](optimization-followup.md).
+> New profile-2 files require an updated reader; see [compatibility](rgi_format.md).
+
+The change measured here speeds encoding without changing the decoder, wire format,
 or image quality. It compares COPY candidates in four-pixel chunks, rejects
 candidates that cannot beat the current match, stops searches at the maximum
 possible match, clears only live copy-table counts, and stops profile-1
 estimation when it can no longer beat profile 0. Candidate ordering and ties
-are preserved. No format migration is necessary.
+are preserved. That optimization alone required no format migration.
 
 ## Primary asset sample
 

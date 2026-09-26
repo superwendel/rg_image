@@ -122,8 +122,47 @@ static void bench_gpu_pack(u8* output, u32 pitch, const u8* pixels, const BenchI
 	}
 }
 
+static void bench_gpu_stage_image(u8* target, u32 pitch, const BenchImage* image, int codec,
+                                  int direct, int premultiply, u8* reused, BenchGpuTimes* times)
+{
+	double begin;
+	if (direct)
+	{
+		begin = bench_now();
+		size_t written = rg_rgi_decode(image->encoded[0].data, image->encoded[0].size,
+		                               target, bench_pixel_bytes(image), NULL, NULL);
+		times->decode += bench_now() - begin;
+		if (written != bench_pixel_bytes(image)) bench_die("direct mapped decode failed");
+	}
+	else
+	{
+		BenchBuffer decoded = {0};
+		const u8* pixels = image->pixels;
+		if (reused)
+		{
+			begin = bench_now();
+			size_t written = rg_rgi_decode(image->encoded[0].data, image->encoded[0].size,
+			                               reused, bench_pixel_bytes(image), NULL, NULL);
+			times->decode += bench_now() - begin;
+			if (written != bench_pixel_bytes(image)) bench_die("reused CPU decode failed");
+			pixels = reused;
+		}
+		else if (codec != 4)
+		{
+			begin = bench_now();
+			decoded = bench_decode(image, codec, 0);
+			times->decode += bench_now() - begin;
+			pixels = decoded.data;
+		}
+		begin = bench_now();
+		bench_gpu_pack(target, pitch, pixels, image, premultiply);
+		times->stage += bench_now() - begin;
+		bench_release(&decoded);
+	}
+}
+
 static void bench_gpu_submit(BenchGpuSlot* slot, const BenchImage* image, int codec,
-                              int direct, int premultiply, u32 batch, BenchGpuTimes* times)
+                              int direct, int premultiply, u32 batch, u8* reused, BenchGpuTimes* times)
 {
 	if (slot->fence) bench_die("upload slot reused before completion");
 	u32 pitch = bench_gpu_pitch(image, direct);
@@ -137,30 +176,7 @@ static void bench_gpu_submit(BenchGpuSlot* slot, const BenchImage* image, int co
 		RgGpuUploadSlice slice;
 		bench_gpu_check(rg_gpu_upload_ring_alloc(&slot->ring, stride, 512u, &slice), "upload ring exhausted");
 		u8* target = (u8*)rg_gpu_upload_ring_ptr(&slot->ring, &slice);
-		if (direct)
-		{
-			begin = bench_now();
-			size_t written = rg_rgi_decode(image->encoded[0].data, image->encoded[0].size,
-			                               target, bench_pixel_bytes(image), NULL, NULL);
-			times->decode += bench_now() - begin;
-			if (written != bench_pixel_bytes(image)) bench_die("direct mapped decode failed");
-		}
-		else
-		{
-			BenchBuffer decoded = {0};
-			const u8* pixels = image->pixels;
-			if (codec != 4)
-			{
-				begin = bench_now();
-				decoded = bench_decode(image, codec, 0);
-				times->decode += bench_now() - begin;
-				pixels = decoded.data;
-			}
-			begin = bench_now();
-			bench_gpu_pack(target, pitch, pixels, image, premultiply);
-			times->stage += bench_now() - begin;
-			bench_release(&decoded);
-		}
+		bench_gpu_stage_image(target, pitch, image, codec, direct, premultiply, reused, times);
 	}
 	begin = bench_now();
 	rg_gpu_upload_ring_end(&slot->ring);
@@ -236,38 +252,67 @@ static void bench_gpu_verify(SDL_GPUTexture* texture, const BenchImage* image, i
 
 static void bench_gpu_check_reuse(void)
 {
-	BenchImage image = {0};
-	image.width = 17u; image.height = 19u;
-	image.pixels = (u8*)malloc(bench_pixel_bytes(&image));
-	if (!image.pixels) bench_die("reuse validation allocation failed");
+	BenchImage images[3] = {0};
+	static const u32 widths[3] = {17u, 31u, 257u};
+	static const u32 heights[3] = {19u, 17u, 5u};
+	size_t capacity = 0;
 	BenchGpuSlot slots[3];
-	for (int i = 0; i < 3; ++i) bench_gpu_slot_init(&slots[i], &image, 1u, 0);
-	for (int round = 0; round < 4; ++round)
+	for (int i = 0; i < 3; ++i)
+	{
+		images[i].width = widths[i]; images[i].height = heights[i];
+		size_t bytes = bench_pixel_bytes(&images[i]);
+		images[i].pixels = (u8*)malloc(bytes);
+		if (!images[i].pixels) bench_die("reuse validation allocation failed");
+		if (bytes > capacity) capacity = bytes;
+		bench_gpu_slot_init(&slots[i], &images[i], 1u, 0);
+	}
+	u8* reused = (u8*)malloc(capacity);
+	if (!reused) bench_die("reuse validation scratch allocation failed");
+	for (u32 round = 0; round < 6u; ++round)
 	{
 		BenchGpuTimes times = {0};
+		int direct = round % 3u == 2u;
+		int premultiply = round >= 3u && !direct;
 		for (int i = 0; i < 3; ++i)
 		{
-			memset(image.pixels, 1 + (round * 3 + i) * 19, bench_pixel_bytes(&image));
-			image.encoded[0] = bench_encode(&image, 0);
-			bench_gpu_submit(&slots[i], &image, 0, round & 1, 0, 1u, &times);
-			bench_release(&image.encoded[0]);
+			BenchImage* image = &images[i];
+			for (u32 y = 0; y < image->height; ++y)
+				for (u32 x = 0; x < image->width; ++x)
+				{
+					u8* pixel = image->pixels + ((size_t)y * image->width + x) * 4u;
+					pixel[0] = (u8)(x * 11u + round * 17u);
+					pixel[1] = (u8)(y * 9u + (u32)i * 13u);
+					pixel[2] = (u8)(x ^ y ^ round);
+					pixel[3] = (u8)(((x + y + round) % 4u) * 85u);
+				}
+			image->encoded[0] = bench_encode(image, 0);
+			bench_gpu_submit(&slots[i], image, 0, direct, premultiply, 1u,
+			                 round % 3u == 1u ? reused : NULL, &times);
+			bench_release(&image->encoded[0]);
 		}
 		for (int i = 0; i < 3; ++i)
 		{
 			bench_gpu_wait(&slots[i], &times);
-			memset(image.pixels, 1 + (round * 3 + i) * 19, bench_pixel_bytes(&image));
-			bench_gpu_verify(slots[i].textures[0], &image, 0);
+			bench_gpu_verify(slots[i].textures[0], &images[i], premultiply);
 		}
 	}
-	for (int i = 0; i < 3; ++i) bench_gpu_slot_destroy(&slots[i], 1u);
-	free(image.pixels);
-	fprintf(stderr, "GPU_REUSE alternating-content=passed slots=3 rounds=4\n");
+	for (int i = 0; i < 3; ++i)
+	{
+		bench_gpu_slot_destroy(&slots[i], 1u);
+		free(images[i].pixels);
+	}
+	free(reused);
+	fprintf(stderr, "GPU_REUSE mixed-dimensions=passed slots=3 rounds=6 allocated+reused+direct+premultiplied\n");
 }
 
 static void bench_gpu_case(const BenchImage* image, const BenchOptions* options, int codec,
-                            int direct, int premultiply, int streaming)
+                            int direct, int premultiply, int streaming, int reuse)
 {
-	const char* mode = direct ? "direct_tight_rgba" : premultiply ? "staged_premultiplied" : "staged_rgba";
+	const char* mode = direct ? "direct_tight_rgba" : reuse ?
+	    (premultiply ? "staged_reused_premultiplied" : "staged_reused_rgba") :
+	    (premultiply ? "staged_premultiplied" : "staged_rgba");
+	u8* reused = reuse ? (u8*)malloc(bench_pixel_bytes(image)) : NULL;
+	if (reuse && !reused) bench_die("GPU CPU scratch allocation failed");
 	u32 batch = 1u;
 	BenchGpuSlot slots[3] = {0};
 	if (streaming)
@@ -288,7 +333,7 @@ static void bench_gpu_case(const BenchImage* image, const BenchOptions* options,
 		double start = bench_now();
 		if (!streaming) bench_gpu_slot_init(&slots[0], image, batch, direct);
 		for (int i = 0; i < (streaming ? 3 : 1); ++i)
-			bench_gpu_submit(&slots[i], image, codec, direct, premultiply, batch, &times);
+			bench_gpu_submit(&slots[i], image, codec, direct, premultiply, batch, reused, &times);
 		for (int i = 0; i < (streaming ? 3 : 1); ++i) bench_gpu_wait(&slots[i], &times);
 		double elapsed = bench_now() - start;
 		// Warmup and final readbacks verify both initial upload and resource reuse.
@@ -300,6 +345,180 @@ static void bench_gpu_case(const BenchImage* image, const BenchOptions* options,
 		if (!streaming) bench_gpu_slot_destroy(&slots[0], batch);
 	}
 	if (streaming) for (int i = 0; i < 3; ++i) bench_gpu_slot_destroy(&slots[i], batch);
+	free(reused);
+}
+
+typedef struct BenchGpuScene
+{
+	RgGpuUploadRing ring;
+	SDL_GPUTexture* textures[8];
+	SDL_GPUFence* fences[8];
+	u32 offsets[8], pitches[8], strides[8];
+	u32 fence_count;
+} BenchGpuScene;
+
+static void bench_gpu_scene_init(BenchGpuScene* scene, const BenchImage* images, u32 count, int direct)
+{
+	memset(scene, 0, sizeof(*scene));
+	u64 bytes = 0;
+	for (u32 i = 0; i < count; ++i)
+	{
+		scene->pitches[i] = bench_gpu_pitch(&images[i], direct);
+		scene->strides[i] = bench_gpu_stride(&images[i], direct);
+		if (bytes + scene->strides[i] > UINT32_MAX) bench_die("scene transfer exceeds SDL size limit");
+		scene->offsets[i] = (u32)bytes;
+		bytes += scene->strides[i];
+	}
+	bench_gpu_check(rg_gpu_upload_ring_init(&scene->ring, bench_device, (u32)bytes), "scene transfer allocation failed");
+	for (u32 i = 0; i < count; ++i)
+	{
+		SDL_GPUTextureCreateInfo info = {0};
+		info.type = SDL_GPU_TEXTURETYPE_2D;
+		info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+		info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+		info.width = images[i].width;
+		info.height = images[i].height;
+		info.layer_count_or_depth = 1u;
+		info.num_levels = 1u;
+		scene->textures[i] = SDL_CreateGPUTexture(bench_device, &info);
+		bench_gpu_check(scene->textures[i] != NULL, "scene texture allocation failed");
+	}
+}
+
+static void bench_gpu_scene_submit(BenchGpuScene* scene, const BenchImage* images, u32 count,
+                                   int codec, int direct, int premultiply, u8* reused,
+                                   u32 batch, BenchGpuTimes* times)
+{
+	if (scene->fence_count) bench_die("scene reused before upload completion");
+	double begin = bench_now();
+	rg_gpu_upload_ring_begin(&scene->ring, 0);
+	bench_gpu_check(scene->ring.mapped != NULL, "scene transfer mapping failed");
+	times->stage += bench_now() - begin;
+	for (u32 i = 0; i < count; ++i)
+	{
+		RgGpuUploadSlice slice;
+		bench_gpu_check(rg_gpu_upload_ring_alloc(&scene->ring, scene->strides[i], 512u, &slice),
+		                "scene transfer exhausted");
+		if (slice.offset != scene->offsets[i]) bench_die("scene transfer layout mismatch");
+		u8* target = (u8*)rg_gpu_upload_ring_ptr(&scene->ring, &slice);
+		bench_gpu_stage_image(target, scene->pitches[i], &images[i], codec, direct, premultiply, reused, times);
+	}
+	begin = bench_now();
+	rg_gpu_upload_ring_end(&scene->ring);
+	times->stage += bench_now() - begin;
+	for (u32 first = 0; first < count; first += batch)
+	{
+		SDL_GPUCommandBuffer* command = SDL_AcquireGPUCommandBuffer(bench_device);
+		bench_gpu_check(command != NULL, "scene command acquisition failed");
+		SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(command);
+		bench_gpu_check(copy != NULL, "scene copy pass failed");
+		u32 end = first + batch < count ? first + batch : count;
+		for (u32 i = first; i < end; ++i)
+		{
+			SDL_GPUTextureTransferInfo source = {0};
+			source.transfer_buffer = scene->ring.buffer;
+			source.offset = scene->offsets[i];
+			source.pixels_per_row = scene->pitches[i] / 4u;
+			source.rows_per_layer = images[i].height;
+			SDL_GPUTextureRegion destination = {0};
+			destination.texture = scene->textures[i];
+			destination.w = images[i].width;
+			destination.h = images[i].height;
+			destination.d = 1u;
+			SDL_UploadToGPUTexture(copy, &source, &destination, false);
+		}
+		SDL_EndGPUCopyPass(copy);
+		begin = bench_now();
+		SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(command);
+		times->submit += bench_now() - begin;
+		bench_gpu_check(fence != NULL, "scene submission failed");
+		scene->fences[scene->fence_count++] = fence;
+	}
+	begin = bench_now();
+	bench_gpu_check(SDL_WaitForGPUFences(bench_device, true, scene->fences, scene->fence_count),
+	                "scene completion wait failed");
+	times->completion += bench_now() - begin;
+	for (u32 i = 0; i < scene->fence_count; ++i) SDL_ReleaseGPUFence(bench_device, scene->fences[i]);
+	scene->fence_count = 0u;
+}
+
+static void bench_gpu_scene_case(const BenchImage* images, u32 count, const BenchImage* record,
+                                 const BenchOptions* options, int codec, int direct,
+                                 int premultiply, int reuse, u32 batch)
+{
+	const char* mode = direct ? "direct_tight_rgba" : reuse ?
+	    (premultiply ? "staged_reused_premultiplied" : "staged_reused_rgba") :
+	    (premultiply ? "staged_premultiplied" : "staged_rgba");
+	BenchGpuScene scene;
+	bench_gpu_scene_init(&scene, images, count, direct);
+	size_t capacity = 0, encoded = 0;
+	u64 hash = 14695981039346656037ull;
+	for (u32 i = 0; i < count; ++i)
+	{
+		size_t bytes = bench_pixel_bytes(&images[i]);
+		if (bytes > capacity) capacity = bytes;
+		const void* data = codec == 4 ? images[i].pixels : images[i].encoded[codec].data;
+		size_t size = codec == 4 ? bytes : images[i].encoded[codec].size;
+		if (size > SIZE_MAX - encoded) bench_die("scene encoded size overflow");
+		encoded += size;
+		// Ordered composition of each image's dimensions and full-stream hash.
+		hash = (hash ^ images[i].width) * 1099511628211ull;
+		hash = (hash ^ images[i].height) * 1099511628211ull;
+		hash = (hash ^ bench_consume(data, size)) * 1099511628211ull;
+	}
+	u8* reused = reuse ? (u8*)malloc(capacity) : NULL;
+	if (reuse && !reused) bench_die("scene CPU scratch allocation failed");
+	for (int sample = -1; sample < options->samples; ++sample)
+	{
+		BenchGpuTimes times = {0};
+		double start = bench_now();
+		bench_gpu_scene_submit(&scene, images, count, codec, direct, premultiply, reused, batch, &times);
+		double elapsed = bench_now() - start;
+		if (sample == -1 || sample == options->samples - 1)
+			for (u32 i = 0; i < count; ++i) bench_gpu_verify(scene.textures[i], &images[i], premultiply);
+		if (sample >= 0) bench_record(record, codec, batch == 1u ? "gpu_scene_single" : "gpu_scene_batch", mode,
+		    sample, encoded, hash, elapsed, 1u, times.decode, times.stage, times.submit, times.completion);
+	}
+	for (u32 i = 0; i < count; ++i) SDL_ReleaseGPUTexture(bench_device, scene.textures[i]);
+	rg_gpu_upload_ring_destroy(&scene.ring);
+	free(reused);
+}
+
+// Caller retains 1..8 prepared images until this function returns. These modes
+// time each distinct image once and report whole-scene totals (count=1).
+static void bench_gpu_scene(const BenchImage* images, u32 count, const BenchOptions* options)
+{
+	static u32 sequence;
+	if (!count || count > 8u) bench_die("GPU scene requires 1..8 images");
+	u64 pixels = 0;
+	for (u32 i = 0; i < count; ++i) pixels += (u64)images[i].width * images[i].height;
+	if (!pixels || pixels > UINT32_MAX) bench_die("scene pixel count exceeds report limit");
+	char name[64];
+	int length = snprintf(name, sizeof(name), "scene/%04u", sequence);
+	if (length < 0 || (size_t)length >= sizeof(name)) bench_die("scene name overflow");
+	u8 profile[14] = {0};
+	profile[13] = 255u; // Aggregate profile marker, never an encoded RGI stream.
+	BenchImage record = {0};
+	record.name = name;
+	record.width = (u32)pixels; record.height = 1u;
+	record.encoded[0].data = profile;
+	fprintf(stderr, "SCENE\t%s\timages=%u pixels=%llu\n", name, count, (unsigned long long)pixels);
+	for (u32 grouping = 0; grouping < 2u; ++grouping)
+	{
+		// Keep the batch operation distinct even for a final one-image scene.
+		u32 batch = ((grouping + sequence) & 1u) == 0u ? 1u : 8u;
+		bench_gpu_scene_case(images, count, &record, options, 4, 0, 0, 0, batch);
+		for (u32 order = 0; order < BENCH_CODEC_COUNT; ++order)
+		{
+			int codec = (int)((order + sequence) % BENCH_CODEC_COUNT);
+			bench_gpu_scene_case(images, count, &record, options, codec, 0, 0, 0, batch);
+			bench_gpu_scene_case(images, count, &record, options, codec, 0, 1, 0, batch);
+		}
+		bench_gpu_scene_case(images, count, &record, options, 0, 0, 0, 1, batch);
+		bench_gpu_scene_case(images, count, &record, options, 0, 0, 1, 1, batch);
+		bench_gpu_scene_case(images, count, &record, options, 0, 1, 0, 0, batch);
+	}
+	++sequence;
 }
 
 static void bench_gpu(const BenchImage* image, const BenchOptions* options)
@@ -307,14 +526,16 @@ static void bench_gpu(const BenchImage* image, const BenchOptions* options)
 	static u32 rotation;
 	for (int streaming = 0; streaming < 2; ++streaming)
 	{
-		bench_gpu_case(image, options, 4, 0, 0, streaming);
+		bench_gpu_case(image, options, 4, 0, 0, streaming, 0);
 		for (int order = 0; order < BENCH_CODEC_COUNT; ++order)
 		{
 			int codec = (order + (int)(rotation % BENCH_CODEC_COUNT)) % BENCH_CODEC_COUNT;
-			bench_gpu_case(image, options, codec, 0, 0, streaming);
-			bench_gpu_case(image, options, codec, 0, 1, streaming);
+			bench_gpu_case(image, options, codec, 0, 0, streaming, 0);
+			bench_gpu_case(image, options, codec, 0, 1, streaming, 0);
 		}
-		bench_gpu_case(image, options, 0, 1, 0, streaming);
+		bench_gpu_case(image, options, 0, 0, 0, streaming, 1);
+		bench_gpu_case(image, options, 0, 0, 1, streaming, 1);
+		bench_gpu_case(image, options, 0, 1, 0, streaming, 0);
 	}
 	++rotation;
 }

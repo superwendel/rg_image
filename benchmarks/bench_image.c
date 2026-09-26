@@ -12,6 +12,8 @@ typedef struct BenchOptions
 	int decode_only;
 	int verify_only;
 	int profile_encoder;
+	int gpu_scene;
+	int palette_experiment;
 } BenchOptions;
 
 static volatile u64 bench_checksum;
@@ -82,7 +84,7 @@ static void bench_cpu(const BenchImage* image, const BenchOptions* options)
 				if (sample >= 0) bench_record(image, codec, operation ? "decode" : "encode", "allocated",
 				    sample, image->encoded[codec].size, hashes[codec], total / iterations, 1u, 0, 0, 0, 0);
 			}
-			if (codec >= 2 && image->source.data)
+			if (codec >= 2 && image->source_is_png)
 			{
 				double total = 0;
 				for (int iteration = 0; iteration < iterations; ++iteration)
@@ -123,6 +125,10 @@ static void bench_cpu(const BenchImage* image, const BenchOptions* options)
 	free(reused);
 }
 
+#ifdef RG_IMAGE_BENCH_PALETTE
+#include "bench_palette.h"
+#endif
+
 #ifdef RG_IMAGE_BENCH_GPU
 #include "bench_gpu.h"
 #endif
@@ -156,11 +162,46 @@ static void bench_encoder_profile(const BenchImage* image, const BenchOptions* o
 	free(workspace); free(output);
 }
 
+#ifdef RG_IMAGE_BENCH_GPU
+static BenchImage bench_scene_images[8];
+static u32 bench_scene_count;
+static size_t bench_scene_bytes;
+
+static void bench_scene_flush(const BenchOptions* options)
+{
+	if (!bench_scene_count) return;
+	bench_gpu_scene(bench_scene_images, bench_scene_count, options);
+	for (u32 i = 0; i < bench_scene_count; ++i)
+	{
+		free((void*)bench_scene_images[i].name);
+		bench_free_image(&bench_scene_images[i]);
+	}
+	bench_scene_count = 0;
+	bench_scene_bytes = 0;
+}
+#endif
+
 static void bench_process(BenchImage* image, const BenchOptions* options)
 {
 	fprintf(stderr, "IMAGE\t%s\t%ux%u\n", image->name, image->width, image->height);
 	fflush(stderr);
 	bench_prepare(image);
+#ifdef RG_IMAGE_BENCH_GPU
+	if (options->gpu_scene)
+	{
+		size_t bytes = bench_pixel_bytes(image);
+		if (bench_scene_count && (bench_scene_count == 8u ||
+		    bench_scene_bytes + bytes > 64u * 1024u * 1024u)) bench_scene_flush(options);
+		char* name = (char*)malloc(strlen(image->name) + 1u);
+		if (!name) bench_die("scene name allocation failed");
+		strcpy(name, image->name);
+		bench_scene_images[bench_scene_count] = *image;
+		bench_scene_images[bench_scene_count++].name = name;
+		bench_scene_bytes += bytes;
+		memset(image, 0, sizeof(*image));
+		return;
+	}
+#endif
 	if (options->decode_only && !options->gpu && !options->verify_only)
 	{
 		for (int codec = 0; codec < BENCH_CODEC_COUNT; ++codec)
@@ -168,6 +209,14 @@ static void bench_process(BenchImage* image, const BenchOptions* options)
 			    bench_consume(image->encoded[codec].data, image->encoded[codec].size),
 			    image->prepare_encode_ns[codec], 1u, 0, 0, 0, 0);
 	}
+#ifdef RG_IMAGE_BENCH_PALETTE
+	if (options->palette_experiment)
+	{
+		bench_palette(image, options);
+		bench_free_image(image);
+		return;
+	}
+#endif
 	if (options->fixtures)
 	{
 		char path[4096];
@@ -213,6 +262,8 @@ static int bench_main(int argc, char** argv)
 		if (!strcmp(arg, "--decode-only")) options.decode_only = 1;
 		else if (!strcmp(arg, "--verify-only")) options.verify_only = 1;
 		else if (!strcmp(arg, "--profile-encoder")) options.profile_encoder = 1;
+		else if (!strcmp(arg, "--gpu-scene")) options.gpu_scene = 1;
+		else if (!strcmp(arg, "--palette-experiment")) options.palette_experiment = 1;
 		else
 		{
 			if (i + 1 >= argc) bench_die("option requires a value");
@@ -229,6 +280,13 @@ static int bench_main(int argc, char** argv)
 #ifndef RG_IMAGE_BENCH_GPU
 	if (options.gpu) bench_die("this executable was built without SDL GPU support");
 #endif
+#ifndef RG_IMAGE_BENCH_PALETTE
+	if (options.palette_experiment) bench_die("this executable was built without the palette experiment");
+#endif
+	if (options.palette_experiment && (options.gpu || options.profile_encoder || options.fixtures))
+		bench_die("--palette-experiment is CPU-only and does not save encoded fixtures");
+	if (options.gpu_scene && (!options.gpu || options.fixtures || options.decode_only))
+		bench_die("--gpu-scene requires --gpu and does not support fixtures or CPU-only flags");
 	if (options.gpu && (options.verify_only || options.profile_encoder))
 		bench_die("GPU validation is always enabled; use --samples 1, without CPU-only verification/profiling flags");
 	rg_time_init();
@@ -289,6 +347,7 @@ static int bench_main(int argc, char** argv)
 		}
 	}
 #ifdef RG_IMAGE_BENCH_GPU
+	if (options.gpu_scene) bench_scene_flush(&options);
 	if (options.gpu) bench_gpu_shutdown();
 #endif
 	if (!processed) bench_die("no supported images matched");

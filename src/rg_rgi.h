@@ -23,17 +23,20 @@
 // OPTIONS:
 //   #define RG_RGI_MAX_DIM      - Consumer maximum width/height (default: 16384)
 //   #define RG_RGI_NO_SIMD      - Disable SIMD run stores
+//   #define RG_RGI_NO_PALETTE_ENCODE - Emit only legacy profiles 0/1; decode all profiles
 //   #define RG_RGI_MALLOC(size) - Custom allocation for rg_rgi_encode
 //   #define RG_RGI_FREE(ptr)    - Matching custom free for rg_rgi_encode
 //
 // NOTES:
 //   - Format is QOI-like with the public wire magic "rgif".
 //   - Width and height are stored little-endian.
-//   - Header byte 13 selects payload profile: 0 = QOI-style, 1 = extended.
+//   - Header byte 13 selects payload profile: 0 = QOI-style, 1 = extended, 2 = palette.
 //   - Extended profile reserves 0xFC for raw RGBA spans.
 //   - Extended profile reserves 0xFD for a little-endian u16 long-run chunk.
+//   - Palette profile stores up to 256 exact RGBA colors and packed indices.
 //   - Checked decode requires the canonical end marker and rejects trailing data.
 //   - Trusted decode requires a previously validated complete stream and buffers.
+//   - Palette profile currently shares checked decoding in the trusted entry point.
 //   - Output is always RGBA8.
 //
 // Author: Steven Wendel (superwendel)
@@ -110,6 +113,7 @@
 #define RG_RGI_OP_MASK  0xC0u
 #define RG_RGI_PROFILE_QOI 0u
 #define RG_RGI_PROFILE_EXTENDED 1u
+#define RG_RGI_PROFILE_PALETTE 2u
 #define RG_RGI_QOI_RUN_MAX_SHORT 62u
 #define RG_RGI_RUN_MAX_SHORT 59u
 #define RG_RGI_RUN_MAX_LONG 65535u
@@ -201,6 +205,7 @@ RGINLINE size_t rg_rgi_decode(const void* src,
  * @param out_width Output width (optional)
  * @param out_height Output height (optional)
  * @return Bytes written to dst
+ * @note Profile 2 currently uses the checked decoder; profiles 0/1 retain their trusted paths.
  */
 RGINLINE size_t rg_rgi_decode_trusted(const void* src,
                                       size_t src_size,
@@ -1012,14 +1017,19 @@ RGINLINE size_t rg_rgi_estimate_rawspan_payload_size_min_copy(const uint8_t* pix
                                                         use_copy, min_copy, copy_table, SIZE_MAX);
 }
 
-RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
+// Emit only while the payload can be strictly smaller than size_limit. A
+// non-winning payload returns size_limit, leaving at most a partial prefix.
+// Each token is checked before writing, including its header and literal bytes.
+RGINLINE size_t rg_rgi__encode_rawspan_payload_bounded(const uint8_t* pixels,
                                                        uint64_t pixel_count,
                                                        uint32_t width,
                                                        uint8_t* ptr,
                                                        int use_copy,
                                                        size_t min_copy,
-                                                       RgRgiCopyTable* copy_table)
+                                                       RgRgiCopyTable* copy_table,
+                                                       size_t size_limit)
 {
+    if (size_limit == 0u) return 0u;
     uint8_t* start = ptr;
     uint32_t index[64];
     memset(index, 0, sizeof(index));
@@ -1045,6 +1055,8 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
             {
                 run++;
             }
+            size_t token_size = run <= RG_RGI_RUN_MAX_SHORT ? 1u : 3u;
+            if (token_size >= size_limit - (size_t)(ptr - start)) return size_limit;
             rg_rgi_emit_run(&ptr, run);
             if (use_copy)
             {
@@ -1067,6 +1079,7 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
                                       px,
                                       index))
         {
+            if (4u >= size_limit - (size_t)(ptr - start)) return size_limit;
             *ptr++ = RG_RGI_OP_COPY;
             *ptr++ = (uint8_t)(copy_count - RG_RGI_COPY_MIN);
             rg_rgi_store_u16_le(ptr, copy_offset);
@@ -1080,6 +1093,7 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
         uint8_t hash = rg_rgi_hash_pixel_u32(cur);
         if (index[hash] == cur)
         {
+            if (1u >= size_limit - (size_t)(ptr - start)) return size_limit;
             *ptr++ = (uint8_t)(RG_RGI_OP_INDEX | hash);
             px = cur;
             if (use_copy)
@@ -1125,6 +1139,8 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
             i++;
         }
 
+        size_t token_size = 2u + count * 4u;
+        if (token_size >= size_limit - (size_t)(ptr - start)) return size_limit;
         *ptr++ = RG_RGI_OP_RAWSPAN;
         *ptr++ = (uint8_t)count;
         memcpy(ptr, pixels + span_start * 4u, count * 4u);
@@ -1137,6 +1153,264 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
     }
 
     return (size_t)(ptr - start);
+}
+
+RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
+                                                       uint64_t pixel_count,
+                                                       uint32_t width,
+                                                       uint8_t* ptr,
+                                                       int use_copy,
+                                                       size_t min_copy,
+                                                       RgRgiCopyTable* copy_table)
+{
+    return rg_rgi__encode_rawspan_payload_bounded(pixels, pixel_count, width, ptr,
+                                                  use_copy, min_copy, copy_table, SIZE_MAX);
+}
+
+RGINLINE uint8_t rg_rgi__palette_bits(uint16_t colors)
+{
+    return colors <= 2u ? 1u : colors <= 4u ? 2u : colors <= 16u ? 4u : 8u;
+}
+
+#ifndef RG_RGI_NO_PALETTE_ENCODE
+RGINLINE uint32_t rg_rgi__palette_slot(uint32_t color,
+                                        const uint32_t palette[256],
+                                        const uint16_t slots[512])
+{
+    uint32_t slot = (color * 2654435761u) >> 23u;
+    while (slots[slot] && palette[slots[slot] - 1u] != color)
+    {
+        slot = (slot + 1u) & 511u;
+    }
+    return slot;
+}
+
+RGINLINE size_t rg_rgi__palette_literal_cost(size_t count, uint8_t bits)
+{
+    return (count + 63u) / 64u + (count * bits + 7u) / 8u;
+}
+
+RGINLINE int rg_rgi__palette_token_wins(size_t pending, size_t count,
+                                         size_t token_bytes, uint8_t bits, int terminal)
+{
+    if (terminal)
+    {
+        return rg_rgi__palette_literal_cost(pending, bits) + token_bytes <=
+               rg_rgi__palette_literal_cost(pending + count, bits);
+    }
+    // A split can add a literal header and a partially filled packed byte.
+    return token_bytes + (pending != 0u) + (((pending * bits) & 7u) != 0u) <=
+           count * bits / 8u;
+}
+
+RGINLINE size_t rg_rgi__palette_run(const uint8_t* pixels, size_t count,
+                                     size_t pos, uint32_t previous)
+{
+    size_t run = 0u;
+    while (pos + run < count && run < 65535u &&
+           rg_rgi_load_u32_le(pixels + (pos + run) * 4u) == previous)
+    {
+        ++run;
+    }
+    return run;
+}
+
+RGINLINE size_t rg_rgi__palette_run_cost(size_t run)
+{
+    return run <= 64u ? 1u : run <= 128u ? 2u : 3u;
+}
+
+// Payload includes the u16 palette count, palette entries and tokens. It must
+// be strictly smaller than size_limit. On rejection, modified distinguishes
+// an untouched incumbent from a partial prefix that must be regenerated.
+// The dictionary is fixed-size stack storage; no per-pixel scratch is needed.
+RGINLINE size_t rg_rgi__encode_palette_payload_bounded(const uint8_t* pixels,
+                                                        uint64_t pixel_count,
+                                                        uint32_t width,
+                                                        uint8_t* ptr,
+                                                        RgRgiCopyTable* table,
+                                                        size_t size_limit,
+                                                        int* modified)
+{
+    *modified = 0;
+    if (pixel_count == 0u || size_limit <= 6u) return size_limit;
+    size_t count = (size_t)pixel_count;
+    uint32_t palette[256];
+    uint16_t slots[512];
+    memset(slots, 0, sizeof(slots));
+    uint16_t colors = 0u;
+    for (size_t i = 0u; i < count; ++i)
+    {
+        uint32_t color = rg_rgi_load_u32_le(pixels + i * 4u);
+        uint32_t slot = rg_rgi__palette_slot(color, palette, slots);
+        if (!slots[slot])
+        {
+            if (colors == 256u) return size_limit;
+            palette[colors] = color;
+            slots[slot] = ++colors;
+            // Even an empty token stream could no longer beat the incumbent.
+            if (2u + (size_t)colors * 4u >= size_limit) return size_limit;
+        }
+    }
+
+    uint8_t bits = rg_rgi__palette_bits(colors);
+    uint8_t* start = ptr;
+    *modified = 1;
+    rg_rgi_store_u16_le(ptr, colors);
+    ptr += 2u;
+    for (uint16_t i = 0u; i < colors; ++i)
+    {
+        rg_rgi_store_u32_le(ptr, palette[i]);
+        ptr += 4u;
+    }
+    memset(table->counts, 0, sizeof(table->counts));
+    uint32_t previous = palette[0];
+    size_t pos = 0u;
+    while (pos < count)
+    {
+        size_t run = rg_rgi__palette_run(pixels, count, pos, previous);
+        size_t run_bytes = rg_rgi__palette_run_cost(run);
+        if (run && rg_rgi__palette_token_wins(0u, run, run_bytes, bits, pos + run == count))
+        {
+            if (run_bytes >= size_limit - (size_t)(ptr - start)) return size_limit;
+            if (run <= 128u)
+            {
+                size_t first = run < 64u ? run : 64u;
+                *ptr++ = (uint8_t)(0x40u | (first - 1u));
+                if (run > first) *ptr++ = (uint8_t)(0x40u | (run - first - 1u));
+            }
+            else
+            {
+                *ptr++ = 0x81u;
+                rg_rgi_store_u16_le(ptr, (uint16_t)run);
+                ptr += 2u;
+            }
+            rg_rgi_copy_table_insert_range(table, pixels, pixel_count, pos, run);
+            pos += run;
+            continue;
+        }
+        uint16_t offset = 0u;
+        size_t copy = rg_rgi_find_copy(table, pixels, pixel_count, width, pos, &offset);
+        size_t copy_bytes = copy <= 67u ? 3u : 4u;
+        if (copy && rg_rgi__palette_token_wins(0u, copy, copy_bytes, bits, pos + copy == count))
+        {
+            if (copy_bytes >= size_limit - (size_t)(ptr - start)) return size_limit;
+            if (copy <= 67u) *ptr++ = (uint8_t)(0xc0u | (copy - 4u));
+            else { *ptr++ = 0x80u; *ptr++ = (uint8_t)(copy - 4u); }
+            rg_rgi_store_u16_le(ptr, offset);
+            ptr += 2u;
+            previous = rg_rgi_load_u32_le(pixels + (pos + copy - 1u) * 4u);
+            rg_rgi_copy_table_insert_range(table, pixels, pixel_count, pos, copy);
+            pos += copy;
+            continue;
+        }
+        size_t span_start = pos, span = 0u;
+        while (pos < count && span < 64u)
+        {
+            if (span)
+            {
+                run = rg_rgi__palette_run(pixels, count, pos, previous);
+                if (run && rg_rgi__palette_token_wins(span, run, rg_rgi__palette_run_cost(run),
+                                                       bits, pos + run == count)) break;
+                copy = rg_rgi_find_copy(table, pixels, pixel_count, width, pos, &offset);
+                copy_bytes = copy <= 67u ? 3u : 4u;
+                if (copy && rg_rgi__palette_token_wins(span, copy, copy_bytes, bits,
+                                                        pos + copy == count)) break;
+            }
+            previous = rg_rgi_load_u32_le(pixels + pos * 4u);
+            rg_rgi_copy_table_insert(table, pixels, pixel_count, pos);
+            ++pos;
+            ++span;
+        }
+        size_t packed = (span * bits + 7u) / 8u;
+        if (1u + packed >= size_limit - (size_t)(ptr - start)) return size_limit;
+        *ptr++ = (uint8_t)(span - 1u);
+        memset(ptr, 0, packed);
+        for (size_t i = 0u; i < span; ++i)
+        {
+            uint32_t color = rg_rgi_load_u32_le(pixels + (span_start + i) * 4u);
+            uint32_t slot = rg_rgi__palette_slot(color, palette, slots);
+            uint8_t index = (uint8_t)(slots[slot] - 1u);
+            ptr[i * bits / 8u] |= (uint8_t)(index << ((i * bits) & 7u));
+        }
+        ptr += packed;
+    }
+    return (size_t)(ptr - start);
+}
+#endif
+
+// The public checked decoder has already validated dimensions, output capacity
+// and non-overlap. end points to the eight-byte canonical end marker.
+RGINLINE size_t rg_rgi__decode_palette_payload(const uint8_t* ptr,
+                                                const uint8_t* end,
+                                                size_t count,
+                                                uint8_t* out)
+{
+    if ((size_t)(end - ptr) < 2u || !rg_rgi__has_end_marker(end)) return 0u;
+    uint16_t colors = rg_rgi_load_u16_le(ptr);
+    ptr += 2u;
+    if (!colors || colors > 256u || (size_t)colors * 4u > (size_t)(end - ptr)) return 0u;
+    uint32_t palette[256];
+    for (uint16_t i = 0u; i < colors; ++i)
+    {
+        palette[i] = rg_rgi_load_u32_le(ptr);
+        ptr += 4u;
+    }
+    uint8_t bits = rg_rgi__palette_bits(colors);
+    uint32_t mask = (1u << bits) - 1u, previous = palette[0];
+    size_t pos = 0u;
+    while (pos < count)
+    {
+        if (ptr == end) return 0u;
+        uint8_t op = *ptr++;
+        if (op < 0x40u)
+        {
+            size_t span = (size_t)op + 1u, packed = (span * bits + 7u) / 8u;
+            if (span > count - pos || packed > (size_t)(end - ptr)) return 0u;
+            uint32_t used = (uint32_t)(span * bits) & 7u;
+            if (used && (ptr[packed - 1u] >> used)) return 0u;
+            for (size_t i = 0u; i < span; ++i)
+            {
+                uint32_t index = (ptr[i * bits / 8u] >> ((i * bits) & 7u)) & mask;
+                if (index >= colors) return 0u;
+                previous = palette[index];
+                rg_rgi_store_pixel_u32(out + (pos + i) * 4u, previous);
+            }
+            ptr += packed;
+            pos += span;
+        }
+        else if (op < 0x80u || op == 0x81u)
+        {
+            size_t run = (size_t)(op & 63u) + 1u;
+            if (op == 0x81u)
+            {
+                if ((size_t)(end - ptr) < 2u) return 0u;
+                run = rg_rgi_load_u16_le(ptr);
+                ptr += 2u;
+            }
+            if (!run || run > count - pos) return 0u;
+            rg_rgi_store_run_rgba_u32(out + pos * 4u, run, previous);
+            pos += run;
+        }
+        else if (op >= 0xc0u || op == 0x80u)
+        {
+            size_t copy = (size_t)(op & 63u) + 4u;
+            if (op == 0x80u)
+            {
+                if (ptr == end) return 0u;
+                copy = (size_t)*ptr++ + 4u;
+            }
+            if ((size_t)(end - ptr) < 2u) return 0u;
+            size_t offset = rg_rgi_load_u16_le(ptr);
+            ptr += 2u;
+            if (copy > count - pos || offset < copy || offset > pos) return 0u;
+            memcpy(out + pos * 4u, out + (pos - offset) * 4u, copy * 4u);
+            pos += copy;
+            previous = rg_rgi_load_u32_le(out + (pos - 1u) * 4u);
+        }
+        else return 0u;
+    }
+    return ptr == end ? count * 4u : 0u;
 }
 
 RGINLINE int rg_rgi_read_header(const void* src,
@@ -1171,7 +1445,7 @@ RGINLINE int rg_rgi_read_header(const void* src,
     {
         return 0;
     }
-    if (channels != 4u || profile > RG_RGI_PROFILE_EXTENDED)
+    if (channels != 4u || profile > RG_RGI_PROFILE_PALETTE)
     {
         return 0;
     }
@@ -1231,6 +1505,14 @@ RGINLINE size_t rg_rgi_decode(const void* src,
     const uint8_t* end = (const uint8_t*)src + src_size - RG_RGI_END_SIZE;
     uint8_t profile = ((const uint8_t*)src)[13];
     uint8_t* out = (uint8_t*)dst;
+    if (profile == RG_RGI_PROFILE_PALETTE)
+    {
+        size_t written = rg_rgi__decode_palette_payload(ptr, end, (size_t)pixel_count, out);
+        if (!written) return 0u;
+        if (out_width != NULL) *out_width = width;
+        if (out_height != NULL) *out_height = height;
+        return written;
+    }
     uint8_t* out_ptr = out;
 
     uint32_t index[64];
@@ -1432,6 +1714,13 @@ RGINLINE size_t rg_rgi_decode_trusted(const void* src,
         return 0u;
     }
     const uint8_t* data = (const uint8_t*)src;
+
+    if (data[13] == RG_RGI_PROFILE_PALETTE)
+    {
+        // Preserve checked palette validation until a distinct trusted path
+        // demonstrates an improvement; legacy trusted paths remain unchanged.
+        return rg_rgi_decode(src, src_size, dst, dst_size, out_width, out_height);
+    }
 
     if (out_width != NULL)
     {
@@ -1709,6 +1998,33 @@ RGINLINE size_t rg_rgi_encode_workspace_size(void)
     return sizeof(RgRgiEncodeWorkspace);
 }
 
+// Retained profile-0/1 selection, isolated from palette selection so restoring
+// an overwritten incumbent never recursively attempts profile 2.
+RGINLINE size_t rg_rgi__encode_legacy_payload(const uint8_t* pixels,
+                                              uint64_t pixel_count,
+                                              uint32_t width,
+                                              uint8_t* payload,
+                                              RgRgiCopyTable* copy_table,
+                                              uint8_t* out_profile)
+{
+    size_t baseline_payload_size = rg_rgi_encode_qoi_payload(pixels, pixel_count, payload);
+    size_t copy_payload_size = rg_rgi__encode_rawspan_payload_bounded(pixels,
+                                                                       pixel_count,
+                                                                       width,
+                                                                       payload,
+                                                                       1,
+                                                                       RG_RGI_COPY_MIN,
+                                                                       copy_table,
+                                                                       baseline_payload_size);
+    if (copy_payload_size < baseline_payload_size)
+    {
+        *out_profile = RG_RGI_PROFILE_EXTENDED;
+        return copy_payload_size;
+    }
+    *out_profile = RG_RGI_PROFILE_QOI;
+    return rg_rgi_encode_qoi_payload(pixels, pixel_count, payload);
+}
+
 RGINLINE size_t rg_rgi_encode_with_workspace(const void* rgba,
                                              uint32_t width,
                                              uint32_t height,
@@ -1751,36 +2067,30 @@ RGINLINE size_t rg_rgi_encode_with_workspace(const void* rgba,
     rg_rgi_store_u32_le(out + 4, width);
     rg_rgi_store_u32_le(out + 8, height);
     out[12] = 4u;
-    out[13] = RG_RGI_PROFILE_QOI;
-
-    uint8_t* ptr = out + RG_RGI_HEADER_SIZE;
     const uint8_t* pixels = (const uint8_t*)rgba;
-    ptr += rg_rgi_encode_qoi_payload(pixels, pixel_count, ptr);
-
-    size_t baseline_payload_size = (size_t)(ptr - (out + RG_RGI_HEADER_SIZE));
-    size_t baseline_size = RG_RGI_HEADER_SIZE + baseline_payload_size + RG_RGI_END_SIZE;
-    size_t copy_payload_size = rg_rgi__estimate_rawspan_payload_size_bounded(pixels,
-                                                                             pixel_count,
-                                                                             width,
-                                                                             1,
-                                                                             RG_RGI_COPY_MIN,
-                                                                             copy_table,
-                                                                             baseline_payload_size);
-    size_t copy_size = RG_RGI_HEADER_SIZE + copy_payload_size + RG_RGI_END_SIZE;
-
-    if (copy_size < baseline_size)
+    uint8_t* payload = out + RG_RGI_HEADER_SIZE;
+    size_t payload_size = rg_rgi__encode_legacy_payload(pixels, pixel_count, width,
+                                                         payload, copy_table, out + 13u);
+#ifndef RG_RGI_NO_PALETTE_ENCODE
+    // The legacy incumbent keeps the existing bound valid. Only a strictly
+    // smaller palette stream wins, including its count and palette overhead.
+    int modified = 0;
+    size_t palette_size = rg_rgi__encode_palette_payload_bounded(pixels, pixel_count, width,
+                                                                 payload, copy_table, payload_size,
+                                                                 &modified);
+    if (palette_size < payload_size)
     {
-        out[13] = RG_RGI_PROFILE_EXTENDED;
-        ptr = out + RG_RGI_HEADER_SIZE;
-        ptr += rg_rgi_encode_rawspan_payload_min_copy(pixels,
-                                                      pixel_count,
-                                                      width,
-                                                      ptr,
-                                                      1,
-                                                      RG_RGI_COPY_MIN,
-                                                      copy_table);
+        out[13] = RG_RGI_PROFILE_PALETTE;
+        payload_size = palette_size;
     }
+    else if (modified)
+    {
+        payload_size = rg_rgi__encode_legacy_payload(pixels, pixel_count, width,
+                                                      payload, copy_table, out + 13u);
+    }
+#endif
 
+    uint8_t* ptr = payload + payload_size;
     ptr[0] = 0u;
     ptr[1] = 0u;
     ptr[2] = 0u;

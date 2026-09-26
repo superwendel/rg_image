@@ -20,6 +20,7 @@ python benchmarks\run.py --samples 7 --runs 3
 build.bat bench_corpus --decode-only --samples 7
 python benchmarks\run.py --baseline-root path\to\baseline --filter pixel-art --runs 3
 python benchmarks\run.py --corpus path\to\assets --private-assets --per-category 16 --runs 3
+python benchmarks\run.py --corpus path\to\assets --input-format rgi --deduplicate --private-assets --decode-only --runs 3
 build.bat bench_profile --filter pixel-art
 ```
 
@@ -39,6 +40,30 @@ forbids fixture output. Do not publish private manifests, logs, or per-image
 results. `--per-category` selects evenly spaced paths from each sorted top-level
 category; it is reproducible, not random or weighted by in-game use. `--filter`,
 `--limit`, `--scalar`, and `--verify-only` support focused checks.
+`--input-format png|rgi` selects corpus file extensions (PNG by default).
+`--deduplicate` keeps the first sorted path for each complete source-file SHA256,
+after filtering and before category sampling or the global limit. This removes
+byte-identical files, not different encodings of identical pixels. A duplicate
+shared by categories belongs to the first retained category. The manifest records
+discovered, filtered, deduplicated, and selected counts, removed duplicates,
+source format, dimensions, source hashes, and original RGI profiles. Without
+deduplication, every selected path remains a separate input.
+
+For a native game-asset comparison, use an RGI corpus with deduplication and a
+saved legacy `src/rg_rgi.h` as `--baseline-root`. Omitting `--per-category` measures
+every distinct source file; a category cap provides broader coverage in a shorter
+GPU run. Keep the corpus root fixed: changing it changes category boundaries.
+Neither a category cap nor a byte-unique census represents how often a game loads
+each asset. Small source layers, large sheets, and real scene loading frequencies
+need separate interpretation. Consecutive GPU groups are synthetic scene batches.
+
+```bat
+python benchmarks\run.py --corpus path\to\assets --input-format rgi --deduplicate --private-assets --baseline-root path\to\legacy --decode-only --samples 7 --runs 3
+python benchmarks\run.py --corpus path\to\assets --input-format rgi --deduplicate --private-assets --baseline-root path\to\legacy --per-category 64 --gpu direct3d12 --gpu-scene --samples 7 --runs 3
+```
+
+`--legacy-encode` defines `RG_RGI_NO_PALETTE_ENCODE` in each benchmark variant,
+limiting output to profiles 0/1 without removing profile-2 decoding support.
 `--profile-encoder` separately measures profile-0 encoding, the unbounded
 profile-1 estimator, and forced profile-1 emission; these diagnostic stages
 do not replace automatic encoder measurements. Stage sizes exclude the file
@@ -67,6 +92,11 @@ Dimensions include 17x19, 257x129, 256x256, 640x360, and 512x512.
 
 All codecs receive identical tightly packed RGBA8 pixels. Source PNGs are
 normalized without gamma conversion; 16-bit channels reduce to 8 bits.
+Native RGI inputs are checked and decoded to RGBA8 outside timing, then freshly
+encoded by every codec. These results measure re-encoded native artwork, not the
+performance of the original shipped streams or complete game startup. The source
+RGI must be supported by both benchmark variants: a legacy reader rejects an
+input already using profile 2. Inputs are read in place and never rewritten.
 Losslessness refers to these canonical pixels, not source metadata or 16-bit
 samples. Every image gets a byte-for-byte round-trip check through every codec
 before timing. Original PNGs are independently decoded by both PNG libraries.
@@ -79,7 +109,8 @@ Codecs are automatic-profile RGI, vendored reference QOI, stb PNG
 libpng 1.6.58/zlib 1.3.2 (compression 6, all filters). All encoded output is
 materialized, not merely counted. PNG implementations are separate results.
 `source_png` measures original corpus PNGs, whose palettes/filters/bit depths
-can differ. stb timing excludes the converter's CRC/Adler integrity preflight;
+can differ. These rows are emitted only for PNG source inputs; there is no
+original-source timing row for RGI inputs. stb timing excludes the converter's CRC/Adler integrity preflight;
 libpng retains normal integrity checks. These pipelines do different work.
 
 `allocated` includes output allocation but excludes validation, hashing, and
@@ -89,6 +120,13 @@ Each image gets one discarded warmup and seven samples by default, rotating
 codec order. Each sample averages `--iterations` calls (at least 32 below
 16 KiB). Timing uses monotonic `rg_time`; Windows CPU runs pin to one available
 logical processor.
+
+Very short calls can produce zero samples at the timer's resolution. The
+summary retains those observations in minima and medians without dropping or
+clamping them; `timing-quality.json` records their counts and affected groups.
+Negative or nonfinite timings are rejected, as is any nonpositive group median
+(rerun that workload with more iterations). Tiny-image relative differences
+near the timer resolution should not be treated as precise speedups.
 
 `--decode-only` still encodes once, records sizes, and verifies round trips.
 Its `encode/preparation_single` rows are cold single observations, not repeated
@@ -125,22 +163,108 @@ uses `(channel * alpha + 127) / 255`, matching `rg_text`. Staged rows align to
 transfer memory with tight rows; SDL can internally repack these on D3D12.
 Predecoded RGBA8 upload provides an overhead control. Direct decoding and
 reused CPU decoding have different allocation costs and are reported separately.
+`staged_reused_rgba` and `staged_reused_premultiplied` use one CPU decode buffer
+allocated before timing and shared sequentially across uploads. The original
+`staged_rgba` and `staged_premultiplied` modes retain their per-image allocation.
+Use aligned staging as the D3D12 default; direct mapped decoding remains an
+explicit option to evaluate on Vulkan and other target devices.
+
+For a game loader, retain a CPU decode buffer sized for the largest queued
+image and reuse its transfer arena and destination textures.
+[`bench_gpu_stage_image`](../benchmarks/bench_gpu.h#L125) demonstrates checked
+decoding into that buffer followed by aligned packing. The CPU buffer can be
+reused immediately after packing because the GPU reads the transfer arena.
+[`bench_gpu_scene_submit`](../benchmarks/bench_gpu.h#L388) demonstrates batching
+pending uploads into one copy pass and waiting for completion. Finish the
+arena's previous submissions before mapping it again; use additional arenas
+when the loader needs work in flight. These are tested integration examples,
+not additions to the codec's public API.
+
+`--gpu-scene` groups consecutive prepared inputs into scenes of up to eight
+distinct images, flushing before their combined RGBA8 size exceeds 64 MiB
+(a larger single image is allowed). A scene owns reusable textures and one
+transfer arena, with separately aligned regions for each image. Each timed
+sample decodes and packs every image once, then submits either one command per
+texture (`gpu_scene_single`) or one command containing all uploads
+(`gpu_scene_batch`). It waits for every submission to finish. Grouping order
+alternates between scenes. Resource and CPU scratch allocation are outside
+these measurements; allocated codec adapters still allocate decoded pixels.
+This measures complete scene uploads without overlapping rendering or disk I/O.
+
+Scene CSV rows represent a whole scene with `count=1`, `width=total pixels`,
+`height=1`, and summed encoded bytes. Their synthetic dimensions are reporting
+metadata, not an image shape. RGI `profile=255` marks a scene containing separate
+streams; it is not a format profile. Scene checksums combine each input's
+dimensions and encoded-byte hash in sequence (pixel hashes for the RGBA8
+control). Scene membership and original dimensions remain in the ordered
+manifest and `IMAGE`/`SCENE` log entries. Compare scene totals with scene totals,
+not individual-image latency.
 
 Raw CSV records CPU decode, staging, submission, and fence-wait intervals.
 These are host measurements, not GPU timestamp queries; total time includes
 other overhead such as allocation and command recording. Readback, outside
 timing, checks every texture after warmup and the final sample. A separate
-alternating-content test checks three-slot reuse over four rounds, with
-odd-width tight and padded uploads. Presentation, shaders, mip generation,
+alternating-content test checks three-slot reuse over six rounds using distinct
+odd-width image sizes, nonuniform RGBA pixels, and allocated/reused/direct
+decoding with straight/premultiplied uploads. Presentation, shaders, mip generation,
 disk I/O, and readback are excluded.
+
+## Isolated palette experiment
+
+`--palette-experiment` adds a CPU-only lossless RGIP prototype. It uses its
+own magic and decoder under `benchmarks/experimental/`. Its successful pixel-art
+results led to public RGI profile 2, which uses the same palette/tokens with a
+normal `rgif` header. The isolated prototype remains available for comparison;
+use `--legacy-encode` to reproduce its comparison against profiles 0/1.
+No encoded fixtures are saved.
+
+```powershell
+python benchmarks/run.py --legacy-encode --palette-experiment --verify-only --output build/palette-check
+python benchmarks/run.py --legacy-encode --palette-experiment --filter pixel-art --samples 7 --runs 3 --output build/palette-generated
+python benchmarks/run.py --legacy-encode --palette-experiment --corpus ASSETS --private-assets --per-category 16 --samples 7 --runs 3 --output build/palette-assets
+```
+
+The format has a 16-byte header, up to 256 exact RGBA palette entries, and an
+8-byte end marker (24 fixed bytes, versus profiles 0/1's 22). Indices use 1, 2, 4, or 8
+bits. Literal packets hold up to 64 indices; short/long runs and nonoverlapping
+COPY packets reuse previously decoded pixels. Palette entries preserve RGB
+under zero alpha. The checked parser validates palette indices, packed padding,
+input/output bounds, COPY offsets, dimensions, the footer, and exact consumption.
+
+`rgip_auto` actually encodes both native RGI and the prototype on every timed
+encode call, retaining the smaller complete stream. Inputs with more than 256
+distinct RGBA values fall back to native RGI. `rgip_forced` reports every
+eligible candidate, including larger outputs. Automatic decoder dispatch is
+inside timing. Both use allocated output; there is no trusted RGIP decoder.
+The prototype encoder allocates one index byte per pixel, an output buffer
+bounded by two bytes per pixel plus 1,048 bytes, and the existing COPY table;
+automatic selection also retains the native candidate during the second attempt.
+
+Native RGI `palette_control` and automatic/forced RGIP rotate within every
+image's samples. Ordinary QOI/PNG/RGI comparisons also run, alternating their
+block order across images. Use the interleaved control for palette conclusions.
+`palette.csv` records eligibility, selection, and raw candidate sizes;
+`palette_subsets.csv` provides matching populations for native, automatic, and
+forced measurements. A colour count of 257 means detection stopped at the
+257th distinct value, not that the image contains exactly 257 colours.
+CSV `profile=254` identifies experimental RGIP data and is not a public RGI
+profile ID. Private per-image details remain under ignored `build/`.
+
+Independent selftests run even with `--verify-only`, covering handcrafted
+packets, palette boundaries, hidden RGB, truncated/corrupt input, destination
+guards, overlapping buffers, and literal/run packing choices. Normal RGI and
+GPU builds do not compile this prototype unless the experiment is selected.
 
 ## Regression checks and ecosystem fit
 
-Tests cover both legacy profiles, a frozen pre-change synthetic fixture,
+Tests cover all three profiles, a frozen pre-change synthetic fixture,
 truncated streams and destination guards, copy/run boundaries, unaligned
-buffers, bounded estimation, dirty workspace reuse, C++, custom allocation,
+buffers, bounded estimation/emission, partial-write fallback and profile ties,
+dirty workspace reuse, C++, custom allocation,
 explicit scalar builds, and converter round trips. Existing `rgi_convert`
-can re-encode `.rgi` to `.rgi`; the retained change needs no format migration.
+can re-encode `.rgi` to `.rgi`. Update readers before distributing profile-2
+assets; old profile-0/1 assets continue to decode. A converter built with
+`RG_RGI_NO_PALETTE_ENCODE` can re-encode profile 2 for older readers.
 CI configures Windows MSVC, Linux Clang sanitizers, and a GPU compile check.
 Device/full-corpus tests are explicit; timing changes never fail CI.
 

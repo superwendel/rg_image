@@ -36,7 +36,12 @@ jobs:
           call build.bat test || exit /b 1
           call build.bat test_bench || exit /b 1
           python tools\prepare_bench.py --png --sdl || exit /b 1
+          set "SDL3_DIR=%CD%\build\bench-deps\SDL3-3.4.14"
+          call build.bat rgi_viewer || exit /b 1
+          call build.bat rgi_thumbnail || exit /b 1
+          call build.bat test_viewer || exit /b 1
           python benchmarks\run.py --filter odd-small --samples 1 --output build\ci-cpu || exit /b 1
+          python benchmarks\run.py --legacy-encode --palette-experiment --verify-only --no-libpng --output build\ci-palette || exit /b 1
           python benchmarks\run.py --gpu direct3d12 --sdl-root build\bench-deps\SDL3-3.4.14 --build-only --output build\ci-gpu || exit /b 1
 
   linux:
@@ -68,6 +73,10 @@ jobs:
           build/ci/test_scalar
           clang "${flags[@]}" tests/test_rgi_allocator.c -o build/ci/test_allocator
           build/ci/test_allocator
+          clang "${flags[@]}" -DRG_RGI_NO_PALETTE_ENCODE tests/test_rgi.c -o build/ci/test_legacy
+          build/ci/test_legacy
+          clang "${flags[@]}" -DRG_RGI_NO_PALETTE_ENCODE tests/test_rgi_allocator.c -o build/ci/test_allocator_legacy
+          build/ci/test_allocator_legacy
           clang++ -std=c++17 -Wall -Wextra -Werror -I src -I "$RG_CORE_DIR/src" tests/test_rgi_cpp.cpp -o build/ci/test_cpp
           build/ci/test_cpp
           clang "${flags[@]}" -DMINIZ_NO_ZLIB_COMPATIBLE_NAMES tools/rgi_convert.c third_party/miniz/miniz_tinfl.c -lm -o build/ci/rgi_convert
@@ -76,6 +85,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_bench.py
           python3 tools/prepare_bench.py --png
           python3 benchmarks/run.py --filter odd-small --samples 1 --output build/ci-bench
+          python3 benchmarks/run.py --legacy-encode --palette-experiment --verify-only --no-libpng --output build/ci-palette
 
 # Device tests and the complete external corpus are explicit local runs.
 # Hosted CI never treats timing changes as correctness failures.

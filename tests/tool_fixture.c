@@ -62,22 +62,28 @@ static int generate_rgi_fixture(void)
 {
     enum { WIDTH = 32, HEIGHT = 32 };
     uint8_t pixels[WIDTH * HEIGHT * 4];
+    uint32_t state = UINT32_C(0x12345678);
     for (uint32_t y = 0u; y < HEIGHT; y++)
     {
         for (uint32_t x = 0u; x < WIDTH; x++)
         {
             size_t i = ((size_t)y * WIDTH + x) * 4u;
-            pixels[i + 0u] = (uint8_t)((x & 7u) * 31u);
-            pixels[i + 1u] = (uint8_t)((y & 7u) * 31u);
-            pixels[i + 2u] = (uint8_t)(((x + y) & 7u) * 31u);
-            pixels[i + 3u] = 255u;
+            state ^= state << 13u; state ^= state >> 17u; state ^= state << 5u;
+            uint8_t index = (uint8_t)(state & 7u);
+            pixels[i + 0u] = (uint8_t)(index * 31u);
+            pixels[i + 1u] = (uint8_t)(index * 71u);
+            pixels[i + 2u] = (uint8_t)(index * 113u);
+            pixels[i + 3u] = (uint8_t)(index & 1u ? 255u : 0u);
         }
     }
     size_t bound = rg_rgi_encode_bound(WIDTH, HEIGHT);
     uint8_t* encoded = (uint8_t*)malloc(bound);
     if (encoded == NULL) return 0;
     size_t size = rg_rgi_encode(pixels, WIDTH, HEIGHT, encoded, bound);
-    int ok = size > 0u && write_file("build/tool_current.rgi", encoded, size);
+    // Converter roundtrips must exercise the palette wire profile, including
+    // RGB values underneath fully transparent pixels.
+    int ok = size > 0u && encoded[13] == RG_RGI_PROFILE_PALETTE &&
+             write_file("build/tool_current.rgi", encoded, size);
     free(encoded);
     return ok;
 }

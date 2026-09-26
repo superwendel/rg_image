@@ -54,11 +54,12 @@ typedef struct BenchImage
 	u32 width, height;
 	u8* pixels;
 	BenchBuffer source;
+	int source_is_png;
 	BenchBuffer encoded[4];
 	double prepare_encode_ns[4];
 } BenchImage;
 
-static const char* const bench_codec_names[5] = {"rgi", "qoi", "png_stb", "png_libpng", "rgba8"};
+static const char* const bench_codec_names[7] = {"rgi", "qoi", "png_stb", "png_libpng", "rgba8", "rgip_auto", "rgip_forced"};
 #ifdef RG_IMAGE_BENCH_LIBPNG
 #define BENCH_CODEC_COUNT 4
 #else
@@ -268,6 +269,8 @@ static BenchBuffer bench_encode(const BenchImage* image, int codec)
 
 static BenchBuffer bench_decode(const BenchImage* image, int codec, int source_png)
 {
+	if (source_png && (!image->source_is_png || codec < 2))
+		bench_die("original PNG decoding requires a PNG source and decoder");
 	const BenchBuffer* input = source_png ? &image->source : &image->encoded[codec];
 	BenchBuffer result = {0};
 	u32 width = 0, height = 0;
@@ -354,6 +357,28 @@ static int bench_load_image(BenchImage* image, const char* path, const char* nam
 {
 	image->name = name;
 	image->source = bench_read_file(path);
+	if (image->source.size >= 4u && !memcmp(image->source.data, "rgif", 4u))
+	{
+		if (image->source.size < RG_RGI_HEADER_SIZE) bench_die("truncated source RGI header");
+		u32 width = rg_rgi_load_u32_le(image->source.data + 4u);
+		u32 height = rg_rgi_load_u32_le(image->source.data + 8u);
+		if (!width || !height || width > RG_RGI_MAX_DIM || height > RG_RGI_MAX_DIM)
+		{
+			fprintf(stderr, "EXCLUDED\t%s\tunsupported dimensions %ux%u\n", name, width, height);
+			bench_release(&image->source);
+			return 0;
+		}
+		if (!rg_rgi_read_header(image->source.data, image->source.size, NULL, NULL))
+			bench_die("source RGI header invalid or unsupported by this codec version");
+		image->width = width;
+		image->height = height;
+		size_t bytes = bench_pixel_bytes(image);
+		image->pixels = (u8*)malloc(bytes);
+		if (!image->pixels || rg_rgi_decode(image->source.data, image->source.size, image->pixels,
+		                                  bytes, NULL, NULL) != bytes)
+			bench_die("source RGI decoding failed");
+		return 1;
+	}
 	if (image->source.size > INT_MAX) bench_die("input exceeds stb API limit");
 	int width = 0, height = 0, channels = 0;
 	if (!stbi_info_from_memory(image->source.data, (int)image->source.size, &width, &height, &channels))
@@ -369,6 +394,7 @@ static int bench_load_image(BenchImage* image, const char* path, const char* nam
 	if (!image->pixels) bench_die("source PNG decoding failed");
 	image->width = (u32)width;
 	image->height = (u32)height;
+	image->source_is_png = 1;
 	return 1;
 }
 
@@ -382,7 +408,7 @@ static void bench_prepare(BenchImage* image)
 		BenchBuffer decoded = bench_decode(image, codec, 0);
 		if (memcmp(decoded.data, image->pixels, decoded.size)) bench_die("codec roundtrip pixel mismatch");
 		bench_release(&decoded);
-		if (image->source.data && codec >= 2)
+		if (image->source_is_png && codec >= 2)
 		{
 			decoded = bench_decode(image, codec, 1);
 			if (memcmp(decoded.data, image->pixels, decoded.size)) bench_die("source PNG decoders disagree");

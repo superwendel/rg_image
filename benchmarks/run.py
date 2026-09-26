@@ -3,6 +3,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -26,14 +27,16 @@ def command_output(args, cwd=ROOT):
     return result.stdout.strip() or result.stderr.strip()
 
 
-def find_images(root):
+def find_images(root, input_format="png"):
+    if input_format not in ("png", "rgi"):
+        raise RuntimeError(f"Unsupported input format: {input_format}")
     def walk(directory):
         for path in sorted(directory.iterdir()):
             if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
                 continue
             if path.is_dir():
                 yield from walk(path)
-            elif path.suffix.lower() == ".png":
+            elif path.suffix.lower() == "." + input_format:
                 yield path
     return sorted(walk(root), key=lambda p: p.relative_to(root).as_posix())
 
@@ -43,10 +46,25 @@ def write_manifest(args, output):
         return None, {"kind": "synthetic", "seed": "0x52474946", "patterns": 9,
                       "primary": "pixel-art", "filter": args.filter}
     root = args.corpus.resolve()
-    images = find_images(root)
+    input_format = getattr(args, "input_format", "png")
+    deduplicate = getattr(args, "deduplicate", False)
+    images = find_images(root, input_format)
     discovered = len(images)
     if args.filter:
         images = [p for p in images if args.filter in p.relative_to(root).as_posix()]
+    filtered_count = len(images)
+    hashes = {}
+    if deduplicate:
+        unique = []
+        seen = set()
+        for path in images:
+            sha = digest(path)
+            hashes[path] = sha
+            if sha not in seen:
+                unique.append(path)
+                seen.add(sha)
+        images = unique
+    deduplicated_count = len(images)
     if args.per_category:
         categories = defaultdict(list)
         for path in images:
@@ -61,7 +79,7 @@ def write_manifest(args, output):
     if args.limit:
         images = images[:args.limit]
     if not images:
-        raise RuntimeError("No PNG images matched")
+        raise RuntimeError(f"No {input_format.upper()} images matched")
     entries = []
     manifest = output / "inputs.tsv"
     with manifest.open("w", encoding="utf-8", newline="\n") as stream:
@@ -71,13 +89,24 @@ def write_manifest(args, output):
                 raise RuntimeError(f"Unsupported control character in image path: {path}")
             with path.open("rb") as source:
                 header = source.read(29)
-            if len(header) < 29 or header[:8] != b"\x89PNG\r\n\x1a\n":
-                raise RuntimeError(f"Not a PNG: {path}")
-            width, height = struct.unpack(">II", header[16:24])
-            entries.append({"name": name, "sha256": digest(path), "source_bytes": path.stat().st_size,
-                            "width": width, "height": height, "bit_depth": header[24], "color_type": header[25]})
+            if input_format == "png":
+                if len(header) < 29 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+                    raise RuntimeError(f"Not a PNG: {path}")
+                width, height = struct.unpack(">II", header[16:24])
+                properties = {"bit_depth": header[24], "color_type": header[25]}
+            else:
+                if len(header) < 14 or header[:4] != b"rgif" or header[12] != 4 or header[13] > 2:
+                    raise RuntimeError(f"Invalid or unsupported RGI header: {path}")
+                width, height = struct.unpack("<II", header[4:12])
+                properties = {"source_profile": header[13]}
+            entries.append({"name": name, "sha256": hashes[path] if path in hashes else digest(path),
+                            "source_bytes": path.stat().st_size, "source_format": input_format,
+                            "width": width, "height": height, **properties})
             stream.write(name + "\t" + str(path) + "\n")
     return manifest, {"kind": "corpus", "root": str(root), "discovered": discovered,
+                      "input_format": input_format, "deduplicate": deduplicate,
+                      "filtered_count": filtered_count, "deduplicated_count": deduplicated_count,
+                      "duplicates_removed": filtered_count - deduplicated_count,
                       "private_assets": args.private_assets, "per_category": args.per_category,
                       "selected": len(entries), "images": entries}
 
@@ -115,6 +144,11 @@ def build(args, output, label, source_root):
             libraries += ["-L" + str(args.sdl_root / "lib"), "-lSDL3"]
     if args.scalar:
         defines.append("RG_RGI_NO_SIMD")
+    if args.legacy_encode:
+        defines.append("RG_RGI_NO_PALETTE_ENCODE")
+    palette_experiment = args.palette_experiment and (not args.baseline_root or label == "candidate")
+    if palette_experiment:
+        defines.append("RG_IMAGE_BENCH_PALETTE")
     sources = [ROOT / "benchmarks" / "bench_image.c", ROOT / "benchmarks" / "bench_sink.c"]
     if os.name == "nt":
         compiler = args.compiler or "cl"
@@ -132,6 +166,9 @@ def build(args, output, label, source_root):
     inputs = sources + [ROOT / "benchmarks" / "bench_codecs.h", source_root / "src" / "rg_rgi.h"]
     if args.gpu:
         inputs.append(ROOT / "benchmarks" / "bench_gpu.h")
+    if palette_experiment:
+        inputs += [ROOT / "benchmarks" / "bench_palette.h"]
+        inputs += sorted((ROOT / "benchmarks" / "experimental").glob("*.h"))
     inputs += sorted((ROOT / "third_party").glob("stb*.h")) + [ROOT / "third_party" / "qoi" / "qoi.h"]
     inputs += [args.core_root / "src" / x for x in ("rg_defs.h", "rg_time.h")]
     if args.gpu:
@@ -148,17 +185,40 @@ def summarize(output, files):
     groups = defaultdict(list)
     examples = {}
     exclusions = set()
+    palettes = {}
     for label, trial, file in files:
         log = file.with_suffix(".log")
         if log.exists():
-            exclusions.update(line for line in log.read_text(encoding="utf-8").splitlines() if line.startswith("EXCLUDED\t"))
+            for line in log.read_text(encoding="utf-8").splitlines():
+                if line.startswith("EXCLUDED\t"):
+                    exclusions.add(line)
+                elif line.startswith("PALETTE\t"):
+                    _, name, details = line.split("\t", 2)
+                    palettes[(label, trial, name)] = {
+                        key: int(value) for key, value in (field.split("=", 1) for field in details.split())}
         with file.open(newline="", encoding="utf-8") as stream:
             for row in csv.DictReader(stream):
                 key = (label, trial, row["image"], row["codec"], row["operation"], row["mode"])
-                if float(row["elapsed_ns"]) <= 0:
-                    raise RuntimeError(f"Nonpositive timing for {key}; increase --iterations")
-                groups[key].append(float(row["elapsed_ns"]) / int(row["count"]))
+                elapsed = float(row["elapsed_ns"])
+                if not math.isfinite(elapsed) or elapsed < 0:
+                    raise RuntimeError(f"Negative or nonfinite timing for {key}")
+                count = int(row["count"])
+                if count <= 0:
+                    raise RuntimeError(f"Nonpositive operation count for {key}")
+                groups[key].append(elapsed / count)
                 examples[key] = row
+    medians = {key: statistics.median(samples) for key, samples in groups.items()}
+    for key, ns in medians.items():
+        if ns <= 0:
+            raise RuntimeError(f"Nonpositive median timing for {key}; increase --iterations")
+    key_fields = ["variant", "trial", "image", "codec", "operation", "mode"]
+    affected = [{**dict(zip(key_fields, key)), "zero_samples": samples.count(0.0),
+                 "raw_samples": len(samples), "median_ns": medians[key]}
+                for key, samples in sorted(groups.items()) if 0.0 in samples]
+    timing_quality = {"raw_sample_count": sum(len(samples) for samples in groups.values()),
+                      "zero_sample_count": sum(item["zero_samples"] for item in affected),
+                      "groups_affected_count": len(affected), "groups_affected": affected}
+    (output / "timing-quality.json").write_text(json.dumps(timing_quality, indent=2) + "\n", encoding="utf-8")
     aggregate = defaultdict(lambda: {"pixels": 0, "ns": 0, "bytes": 0, "raw": 0, "images": 0})
     fields = ["variant", "trial", "image", "codec", "operation", "mode", "median_ns", "min_ns", "max_ns", "encoded_bytes", "encoded_hash", "profile"]
     with (output / "cases.csv").open("w", newline="", encoding="utf-8") as stream:
@@ -167,7 +227,7 @@ def summarize(output, files):
         for key, samples in sorted(groups.items()):
             label, trial, name, codec, operation, mode = key
             row = examples[key]
-            ns = statistics.median(samples)
+            ns = medians[key]
             writer.writerow([*key, ns, min(samples), max(samples), row["encoded_bytes"], row["encoded_hash"], row["profile"]])
             category = name.rsplit("/", 1)[0] if "/" in name else "root"
             for scope in ("ALL", category):
@@ -185,8 +245,8 @@ def summarize(output, files):
             writer.writerow([*key, item["images"], item["pixels"], item["ns"], item["pixels"] * 1e3 / item["ns"], item["bytes"], item["raw"], item["bytes"] * 100 / item["raw"]])
     lines = ["# RGI benchmark results", "", "CPU allocated modes include output allocation; validation and release are outside timing. Reused modes exclude allocation.",
              "Preparation_single is one cold encode, not a repeated measurement. GPU latency includes resource creation and fence completion; streaming reuses resources.",
-             "Throughput is total pixels / sum of per-image median times. Source PNG rows are separate from generated PNG rows.", "",
-             "| Variant | Trial | Codec | Operation | Mode | Images | ms/image | MP/s | Encoded bytes |",
+             "Throughput is total pixels / sum of per-case median times. A gpu_scene_* case is an entire mixed scene; all other cases are individual images. Source PNG rows are separate from generated PNG rows.", "",
+             "| Variant | Trial | Codec | Operation | Mode | Cases | ms/case | MP/s | Encoded bytes |",
              "| --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: |"]
     for (label, trial, scope, codec, operation, mode), item in sorted(aggregate.items()):
         if scope != "ALL":
@@ -204,7 +264,71 @@ def summarize(output, files):
                   "| Codec | Operation | Mode | Median change |", "| --- | --- | --- | ---: |"]
         for key, values in sorted(comparisons.items()):
             lines.append("| " + " | ".join(key) + f" | {(statistics.median(values) - 1) * 100:+.2f}% |")
+    if palettes:
+        with (output / "palette.csv").open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(["variant", "trial", "image", "colors", "color_count_capped", "index_bits",
+                             "eligible", "selected", "rgi_bytes", "rgip_bytes", "auto_bytes"])
+            for key, item in sorted(palettes.items()):
+                colors = item["colors"]
+                bits = 0 if not item["eligible"] else 1 if colors <= 2 else 2 if colors <= 4 else 4 if colors <= 16 else 8
+                writer.writerow([*key, colors, int(colors == 257), bits, item["eligible"], item["selected"],
+                                 item["rgi_bytes"], item["rgip_bytes"], item["auto_bytes"]])
+        subsets = defaultdict(lambda: {"pixels": 0, "ns": 0, "bytes": 0, "images": 0})
+        for key, samples in groups.items():
+            label, trial, name, codec, operation, mode = key
+            if not ((codec == "rgi" and mode == "palette_control") or
+                    (codec in ("rgip_auto", "rgip_forced") and mode == "allocated")):
+                continue
+            item = palettes.get((label, trial, name))
+            if item is None:
+                continue
+            scopes = ["all"] if codec != "rgip_forced" else []
+            if item["eligible"]:
+                scopes.append("eligible")
+            if item["selected"]:
+                scopes.append("selected")
+            else:
+                if codec != "rgip_forced":
+                    scopes.append("fallback")
+                if item["eligible"]:
+                    scopes.append("eligible_fallback")
+            row = examples[key]
+            for scope in scopes:
+                total = subsets[(label, trial, scope, codec, operation, mode)]
+                total["pixels"] += int(row["width"]) * int(row["height"])
+                total["ns"] += statistics.median(samples)
+                total["bytes"] += int(row["encoded_bytes"])
+                total["images"] += 1
+        with (output / "palette_subsets.csv").open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(["variant", "trial", "subset", "codec", "operation", "mode", "images",
+                             "total_pixels", "total_ns", "mpps", "encoded_bytes"])
+            for key, item in sorted(subsets.items()):
+                writer.writerow([*key, item["images"], item["pixels"], item["ns"],
+                                 item["pixels"] * 1e3 / item["ns"], item["bytes"]])
+        lines += ["", "## Experimental palette comparison", "",
+                  "RGIP is a private lossless experiment, not a public RGI profile. Profile 254 identifies RGIP rows.",
+                  "rgip_auto includes native fallback when palette encoding is ineligible or not smaller. Its encode time includes both attempts.",
+                  "rgip_forced reports every eligible input, including candidates larger than native RGI. Colors=257 means detection stopped at the 257th colour.",
+                  "The native palette_control is interleaved with auto/forced measurements. Forced rows use matching eligible, selected and eligible_fallback subsets.",
+                  "palette.csv retains raw candidate sizes; palette_subsets.csv separates all, eligible, selected, fallback and eligible_fallback aggregates.", "",
+                  "| Variant | Trial | Inputs | Eligible | Selected | Native bytes | Automatic bytes |",
+                  "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
+        counts = defaultdict(lambda: {"images": 0, "eligible": 0, "selected": 0, "native": 0, "auto": 0})
+        for (label, trial, _), item in palettes.items():
+            total = counts[(label, trial)]
+            total["images"] += 1
+            total["eligible"] += item["eligible"]
+            total["selected"] += item["selected"]
+            total["native"] += item["rgi_bytes"]
+            total["auto"] += item["auto_bytes"]
+        for (label, trial), item in sorted(counts.items()):
+            lines.append(f"| {label} | {trial} | {item['images']} | {item['eligible']} | {item['selected']} | {item['native']} | {item['auto']} |")
     lines += ["", f"Excluded inputs: {len(exclusions)} distinct image(s); reasons are recorded in the run logs.",
+              f"Timing quality: {timing_quality['zero_sample_count']} of {timing_quality['raw_sample_count']} raw samples "
+              f"were zero at timer resolution, retained in {timing_quality['groups_affected_count']} positive-median group(s) "
+              "without filtering or clamping. Details are in timing-quality.json.",
               "Raw samples, per-image results, category totals, exclusions, build commands and input hashes accompany this report.", ""]
     (output / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
@@ -213,6 +337,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", nargs="?", choices=["bench", "bench_corpus", "bench_gpu", "test_gpu", "bench_profile"])
     parser.add_argument("--corpus", type=Path)
+    parser.add_argument("--input-format", choices=["png", "rgi"], default="png",
+                        help="source file type for --corpus; native RGI artwork is decoded before timing")
+    parser.add_argument("--deduplicate", action="store_true",
+                        help="keep first sorted path per source SHA256 before category sampling and limits")
     parser.add_argument("--output", type=Path, default=ROOT / "build" / "benchmarks" / (time.strftime("%Y%m%d-%H%M%S") + f"-{os.getpid()}"))
     parser.add_argument("--core-root", type=Path, default=Path(os.environ.get("RG_CORE_DIR", ROOT.parent / "rg_core")))
     parser.add_argument("--candidate-root", type=Path, default=ROOT)
@@ -221,9 +349,12 @@ def main():
     parser.add_argument("--png-prefix", type=Path, default=ROOT / "build" / "bench-deps" / "prefix")
     parser.add_argument("--no-libpng", action="store_true", help="explicit three-codec smoke benchmark")
     parser.add_argument("--gpu", choices=["direct3d12", "vulkan", "metal"])
+    parser.add_argument("--gpu-scene", action="store_true", help="measure mixed groups of up to eight images; timings are per scene")
+    parser.add_argument("--palette-experiment", action="store_true", help="add isolated lossless RGIP automatic/forced CPU comparisons")
     parser.add_argument("--sdl-root", type=Path, default=os.environ.get("SDL3_DIR"))
     parser.add_argument("--compiler")
     parser.add_argument("--scalar", action="store_true")
+    parser.add_argument("--legacy-encode", action="store_true", help="emit only RGI profiles 0/1; retain decoding support for all profiles")
     parser.add_argument("--samples", type=int, default=7)
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--runs", type=int, default=1, help="alternating baseline/candidate process pairs")
@@ -239,12 +370,18 @@ def main():
     args = parser.parse_args()
     if args.target == "bench_corpus" and args.corpus is None:
         args.corpus = ROOT / "build" / "bench-deps" / "corpus" / "images"
+    if not args.corpus and (args.input_format != "png" or args.deduplicate):
+        parser.error("--input-format rgi and --deduplicate require --corpus")
     if args.target in ("bench_gpu", "test_gpu") and not args.gpu:
         args.gpu = "direct3d12" if os.name == "nt" else "vulkan"
     if args.target == "test_gpu":
         args.samples = 1
     if args.target == "bench_profile":
         args.profile_encoder = True
+    if args.palette_experiment and (args.gpu or args.gpu_scene or args.profile_encoder or args.save_fixtures):
+        parser.error("--palette-experiment is CPU-only and cannot save encoded fixtures")
+    if args.gpu_scene and (not args.gpu or args.save_fixtures or args.decode_only or args.verify_only or args.profile_encoder):
+        parser.error("--gpu-scene requires --gpu and cannot be combined with CPU-only flags or fixtures")
     if args.gpu and not args.sdl_root and os.name == "nt":
         candidates = []
         for directory in Path("C:/libs").glob("SDL3-*"):
@@ -305,6 +442,10 @@ def main():
                 command += ["--filter", args.filter]
             if args.gpu:
                 command += ["--gpu", args.gpu]
+            if args.gpu_scene:
+                command += ["--gpu-scene"]
+            if args.palette_experiment and (not args.baseline_root or label == "candidate"):
+                command += ["--palette-experiment"]
             if args.decode_only:
                 command += ["--decode-only"]
             if args.verify_only:
