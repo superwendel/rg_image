@@ -72,9 +72,9 @@ The complete, normative wire contract is in
 four-byte magic `rgif`.
 
 Read the [introduction and measured tradeoffs](docs/blog/introducing-rgi.md), or
-download the [two-page specification sheet](output/pdf/rgi-specification.pdf).
+download the [two-page specification sheet](docs/rgi-specification.pdf).
 The sheet's [editable source](docs/rgi-specification-sheet.md) and
-[PDF build instructions](docs/documentation.md) are included.
+[PDF build instructions](#documentation) are included.
 
 The current decoder reads existing profile-0/1 files. New profile-2 files need
 an updated reader; rebuild converters, viewers, and thumbnail handlers together
@@ -150,21 +150,93 @@ tool builds. The benchmark runner compares RGI, reference QOI, stb PNG, and
 optional libpng on generated pixel art, the public QOI corpus, or local assets.
 It supports paired comparisons, reusable buffers, and SDL GPU upload completion
 on D3D12 and Vulkan. Private assets are read in place and their results stay
-under ignored `build/`. See [`docs/benchmarks.md`](docs/benchmarks.md) for setup
-and methodology. The [performance results](docs/performance-results.md) compare
+under ignored `build/`. See the [benchmark guide](docs/benchmarks/README.md) for
+setup and methodology. The [performance results](docs/benchmarks/rg_image.md) compare
 the current codec with QOI and PNG on a private pixel-art library and the public
 QOI corpus, including encoding cost, GPU uploads, and measurement limits.
-The [initial encoder report](docs/benchmark-results.md) is historical and
+The [initial encoder report](docs/benchmarks/benchmark-results.md) is historical and
 predates palette support.
+
+`build.bat example` builds and runs the [round-trip example](tests/example_rgi.c),
+which is also exercised by the aggregate test.
+
+## Documentation
+
+The [blog draft](docs/blog/introducing-rgi.md),
+[normative wire specification](docs/rgi_format.md), and
+[printable specification](docs/rgi-specification.pdf) live under `docs/`.
+Benchmark reports and their supporting CSV/JSON data live under
+[`docs/benchmarks/`](docs/benchmarks/README.md).
+
+Rebuild the two-page PDF from its [editable source](docs/rgi-specification-sheet.md)
+with Python 3.10 or newer:
+
+```sh
+python -m pip install -r tools/requirements-docs.txt
+python tools/build_spec_pdf.py
+```
+
+The generator produces deterministic output and rejects content that exceeds
+two pages. After editing, render with Poppler and inspect both pages for
+clipped text, table alignment, and opcode accuracy:
+
+```sh
+pdftoppm -scale-to 1600 -png docs/rgi-specification.pdf build/rgi-spec
+```
+
+Create `build/` first if it does not exist. Documentation dependencies are
+optional and are not used by the codec or its normal build.
 
 ## Third-party code
 
-Tooling vendors stb_image 2.30, stb_image_write 1.16, miniz 3.1.0, and the QOI
-reference implementation under their respective permissive terms; see
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). None of these libraries is
-part of the public runtime dependency graph.
+The public RGI runtime in `src/rg_rgi.h` does not use these dependencies. They
+are used only for tools and benchmarks.
+
+### stb_image 2.30
+
+`third_party/stb_image.h` is by Sean Barrett and contributors. It is available
+under the public-domain dedication or MIT license reproduced at the end of that
+file. The converter and benchmark compile it with `STBI_ONLY_PNG` and
+`STBI_NO_STDIO`; the benchmark uses it for direct RGBA8 PNG decoding.
+
+### stb_image_write 1.16
+
+`third_party/stb_image_write.h` is by Sean Barrett and contributors. It is
+available under the public-domain dedication or MIT license reproduced at the
+end of that file. The deterministic benchmark uses its in-memory PNG encoder
+with compression level 8 and adaptive filtering.
+
+### miniz 3.1.0
+
+The files under `third_party/miniz` are copyright 2013-2014 RAD Game Tools and
+Valve Software, and copyright 2010-2014 Rich Geldreich and Tenacious Software
+LLC. They are distributed under the MIT license in
+`third_party/miniz/LICENSE`. Only the inflate implementation is compiled, to
+validate the Adler-32 checksum on PNG IDAT zlib streams.
+
+### QOI reference implementation
+
+`third_party/qoi/qoi.h` is copyright Dominic Szablewski and is distributed
+under the MIT license in `third_party/qoi/LICENSE`. It is used only by the
+benchmark comparison and conversion tools.
+
+### Downloaded benchmark dependencies and images
+
+`tools/prepare_bench.py` optionally downloads libpng 1.6.58 (the PNG Reference
+Library License v2), zlib 1.3.2 (the zlib license), and the Windows SDL 3.4.14
+SDK (the zlib license). Distributions retain upstream license files under
+ignored `build/bench-deps/`; none is vendored here or required by the runtime.
+Download URLs and SHA256 values are in the script.
+
+The optional [QOI benchmark corpus](https://qoiformat.org/benchmark/) contains
+third-party images with their own provenance and terms. Downloaded images and
+accompanying notices stay in ignored `build/`. Private game assets are read
+from their original location and are not distributed by this repository.
 
 ## License and trademark
 
 The software and documentation are available under the [MIT License](LICENSE).
-See the separate [trademark notice](TRADEMARK.md) for the Reverse Gravity name.
+Reverse Gravity is a registered trademark of Steven Wendel in the United
+States. The license grants rights to the software and associated documentation;
+it does not grant rights to use the Reverse Gravity name or trademark except
+to identify the origin of this software.

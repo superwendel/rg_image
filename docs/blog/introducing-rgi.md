@@ -71,7 +71,7 @@ trial averages the per-image median times; the table reports the median
 of those three trial aggregates. Output allocation is timed, while output
 release and correctness hashing are outside timing. These are warm-memory
 CPU measurements: disk reads and GPU uploads are excluded. The
-[methodology](../benchmarks.md#cpu-method) records codec versions, compression
+[methodology](../benchmarks/README.md#cpu-method) records codec versions, compression
 settings, iteration counts, and differences in decoder integrity checking.
 
 On this asset set, RGI delivers about **twice QOI's allocated decode
@@ -80,8 +80,8 @@ the generated libpng output. Against the optimized RGI encoder restricted
 to profiles 0/1, adding palette selection reduces total size by 18.25% and
 the aggregate allocated decode time by 5.66%. Those are whole-corpus
 aggregates, not promises for individual images or game startup. The
-[current results](../performance-results.md#pixel-art-cpu-results)
-and [CSV](../performance-results.csv) contain the underlying totals.
+[current results](../benchmarks/rg_image.md#pixel-art-cpu-results)
+and [CSV](../benchmarks/performance-results.csv) contain the underlying totals.
 
 I also used the public QOI benchmark corpus to look beyond game art.
 Its downloaded archive contains 2,848 images; 2,847 fit RGI's dimensions.
@@ -92,7 +92,7 @@ with 4.43% fewer encoded bytes. RGI files were 4.63% larger than generated
 libpng output, and the original PNG files were smaller still. Those mixed-corpus
 results are separate from the pixel-art results. Photographs remain useful
 stress cases, and PNG keeps a compression advantage across this broader
-collection. The [public-corpus report](../performance-results.md#public-qoi-corpus)
+collection. The [public-corpus report](../benchmarks/rg_image.md#public-qoi-corpus)
 includes original-PNG decode results as well.
 
 Encoding is the conspicuous cost. On a separate, repeatedly measured

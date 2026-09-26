@@ -3,7 +3,7 @@
 Pixel art is the primary workload: sprites, transparent UI, tilemaps, and
 animation sheets. Photographs are secondary stress tests. All codecs must
 preserve canonical RGBA8 pixels exactly, including RGB under zero alpha.
-See [performance results](performance-results.md) for current measurements,
+See [performance results](rg_image.md) for current measurements,
 hardware, and workload limitations.
 Timings are not directly comparable to the [QOI website](https://qoiformat.org/benchmark/).
 
@@ -172,10 +172,10 @@ explicit option to evaluate on Vulkan and other target devices.
 
 For a game loader, retain a CPU decode buffer sized for the largest queued
 image and reuse its transfer arena and destination textures.
-[`bench_gpu_stage_image`](../benchmarks/bench_gpu.h#L125) demonstrates checked
+[`bench_gpu_stage_image`](../../benchmarks/bench_gpu.h#L125) demonstrates checked
 decoding into that buffer followed by aligned packing. The CPU buffer can be
 reused immediately after packing because the GPU reads the transfer arena.
-[`bench_gpu_scene_submit`](../benchmarks/bench_gpu.h#L388) demonstrates batching
+[`bench_gpu_scene_submit`](../../benchmarks/bench_gpu.h#L388) demonstrates batching
 pending uploads into one copy pass and waiting for completion. Finish the
 arena's previous submissions before mapping it again; use additional arenas
 when the loader needs work in flight. These are tested integration examples,

@@ -2,8 +2,8 @@
 
 > Historical report: this measures the initial profile-0/1 encoder optimization,
 > before profile 2 was added. For the current codec, palette results, full public
-> corpus, and game assets, see the [performance results](performance-results.md).
-> New profile-2 files require an updated reader; see [compatibility](rgi_format.md).
+> corpus, and game assets, see the [performance results](rg_image.md).
+> New profile-2 files require an updated reader; see [compatibility](../rgi_format.md).
 
 The change measured here speeds encoding without changing the decoder, wire format,
 or image quality. It compares COPY candidates in four-pixel chunks, rejects
@@ -15,7 +15,7 @@ are preserved. That optimization alone required no format migration.
 ## Primary asset sample
 
 Measured on 2026-09-25 using an Intel Core i7-12700KF, Windows 11 build 26200,
-MSVC 19.44.35219 x64 `/O2 /MD`, and the [documented method](benchmarks.md).
+MSVC 19.44.35219 x64 `/O2 /MD`, and the [documented method](README.md).
 Baseline is `14e48b2970aacfce45d852708cbefaeaf3f91fe8`. The private sample has
 128 pixel-art assets selected with at most 16 evenly spaced files per top-level
 category. Three alternating baseline/candidate process pairs each used seven

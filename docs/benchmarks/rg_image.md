@@ -9,14 +9,14 @@ every image's performance or a game's startup time.
 
 All results below use production RGI profiles 0/1/2. Every profile preserves
 all RGBA values, including RGB beneath zero alpha. See the
-[format specification](rgi_format.md) for compatibility and decoding contracts.
+[format specification](../rgi_format.md) for compatibility and decoding contracts.
 
 ## Datasets and measurement
 
 Measurements were collected on September 25-26, 2026 using an Intel Core
 i7-12700KF, Windows 11, and MSVC 19.44 x64 with `/O2 /MD`. GPU measurements
 used an NVIDIA GeForce RTX 2060 and SDL 3.4.10 with D3D12 and Vulkan.
-The [benchmark guide](benchmarks.md) records codec versions, PNG settings,
+The [benchmark guide](README.md) records codec versions, PNG settings,
 timing boundaries, and setup instructions.
 
 | Dataset | Coverage | Purpose |
@@ -57,7 +57,7 @@ release, correctness hashing, and GPU uploads are outside timing.
 RGI has 2.00 times QOI's aggregate allocated decode throughput and uses
 40.66% fewer bytes. It uses 17.21% fewer bytes than generated libpng output.
 Original authored PNGs are not part of this input set. PNG decode paths also
-differ in integrity checking; see the [CPU method](benchmarks.md#cpu-method).
+differ in integrity checking; see the [CPU method](README.md#cpu-method).
 
 Compared with the optimized RGI encoder restricted to profiles 0/1, palette
 selection reduces encoded size from 29,596,914 to 24,195,307 bytes (18.25%)
@@ -139,7 +139,7 @@ All batches pass texture readback checks.
 Direct decoding into mapped transfer memory measures 26.4221 ms/batch on
 D3D12 and 2.4508 ms/batch on Vulkan. CPU staging is the portable starting
 point; direct mapping needs measurement on the target backend and device.
-The [GPU method](benchmarks.md#gpu-method) explains the upload paths.
+The [GPU method](README.md#gpu-method) explains the upload paths.
 
 Timing ends after upload fences complete. It excludes disk I/O, texture and
 transfer-buffer creation, readback, concurrent rendering, and worker overlap.
@@ -149,7 +149,7 @@ The results do not measure complete application loading or startup.
 
 Prepare dependencies and rerun the public corpus from an MSVC x64 environment
 with Python and the required `rg_core` include path, as described in the
-[setup guide](benchmarks.md#running):
+[setup guide](README.md#running):
 
 ```powershell
 python tools/prepare_bench.py --png --corpus
@@ -164,7 +164,7 @@ python benchmarks/run.py --corpus ASSETS --input-format rgi --deduplicate --priv
 
 This measures the current codec against QOI/PNG on your inputs. A paired RGI
 version comparison additionally requires `--baseline-root` pointing to the
-desired baseline header; see [paired comparisons](benchmarks.md#cpu-method).
+desired baseline header; see [paired comparisons](README.md#cpu-method).
 Raw samples from a new run remain under its ignored `build/` output directory.
 
 The committed [aggregate CSV](performance-results.csv) and

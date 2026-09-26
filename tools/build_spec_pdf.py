@@ -191,7 +191,7 @@ def flowables(source: str) -> list:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "output/pdf/rgi-specification.pdf")
+    parser.add_argument("--output", type=Path, default=ROOT / "docs/rgi-specification.pdf")
     args = parser.parse_args()
     source = (ROOT / "docs/rgi-specification-sheet.md").read_text(encoding="utf-8")
     revision = re.search(r"\*\*(Specification sheet.+)\*\*", source)

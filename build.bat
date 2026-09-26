@@ -71,7 +71,7 @@ rg_rgi_test_allocator.exe
 EXIT /B %ERRORLEVEL%
 
 :example
-cl %BASE_FLAGS% %OPT_FLAGS% examples\example_rgi.c /Fe:example_rgi.exe
+cl %BASE_FLAGS% %OPT_FLAGS% tests\example_rgi.c /Fe:example_rgi.exe
 IF ERRORLEVEL 1 EXIT /B 1
 example_rgi.exe
 EXIT /B %ERRORLEVEL%
