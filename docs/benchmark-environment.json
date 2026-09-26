@@ -1,0 +1,412 @@
+{
+  "corpus": {
+    "source": "https://qoiformat.org/benchmark/",
+    "archive_url": "https://qoiformat.org/benchmark/qoi_benchmark_suite.tar",
+    "archive_sha256": "00166f555ca760e23647025e46d9b046e03cd2e22869d4ecb496edc527cd0d7d",
+    "image_count": 2848
+  },
+  "runs": {
+    "private_pixel_art_cpu": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-25T22:07:36Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "baseline": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "06d094536024338e18bc676951b25ab29946e31ca7f1b49267bf0916eec9e212",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "a431b1e674a01f220f9a0a89e2f64a0bb97b5e6fa855b7ef7285c402ce65f3e2",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "9680a2d238aa8c901cac71bafdb80b946176311e85cd180d5b4d64cc90b1637f",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 3,
+        "gpu": null,
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": false,
+        "per_category": 16
+      },
+      "available_input_images": 128,
+      "private_assets": true,
+      "processed_images": 128,
+      "rgi_size_hash_profile_matches": 384
+    },
+    "public_qoi_cpu": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-25T22:12:39Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "baseline": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "06d094536024338e18bc676951b25ab29946e31ca7f1b49267bf0916eec9e212",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "1e9d2eb1602cf35e1c52f57678896c9a39b7f620e96468357e074f2b246a43db",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "4d5955277bf94eeb55d48634bc6d4a4060fda2b791d40bb38f1da2b178a9d76e",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 1,
+        "gpu": null,
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": true,
+        "profile_encoder": false,
+        "per_category": null
+      },
+      "available_input_images": 2848,
+      "private_assets": false,
+      "resume": {
+        "utc": "2026-09-26T00:21:11Z",
+        "parts": [
+          "candidate-00.csv",
+          "candidate-part-01.csv"
+        ],
+        "completed_images": 2847,
+        "reason": "background process interrupted; retain only complete per-image sample sets"
+      },
+      "processed_images": 2847,
+      "exclusions": [
+        "EXCLUDED\tscreenshot_web/phoboslab.org.png\tunsupported dimensions 1313x20667"
+      ],
+      "rgi_size_hash_profile_matches": 2847
+    },
+    "private_pixel_art_d3d12": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-26T00:21:20Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "SDL3.dll": "c39fbda24eca1009b06a4d4e340d12511e3c8b0d44c4898d29e336e2cc7a25f0",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "bench_gpu.h": "d4c1768e855c3dbf4b96ab3a5e77d8b7254ddcc576c6049274d3d8c0361c77f3",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5",
+            "rg_gpu.h": "f1743f9087eba2f0c4989f9198cb0290840dc7781c294f6f394e94d14e6eaffa"
+          },
+          "executable_sha256": "db19e53f8b3cf0e1ff73ac1dbed803c559067257090991d0090f75665ff36a03",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 1,
+        "gpu": "direct3d12",
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": false,
+        "per_category": 16
+      },
+      "available_input_images": 128,
+      "private_assets": true,
+      "processed_images": 128,
+      "gpu": [
+        "GPU backend=direct3d12 device=NVIDIA GeForce RTX 2060 driver=32.0.15.9597 SDL=3004010",
+        "GPU_REUSE alternating-content=passed slots=3 rounds=4"
+      ]
+    },
+    "private_pixel_art_vulkan": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-26T00:24:00Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "SDL3.dll": "c39fbda24eca1009b06a4d4e340d12511e3c8b0d44c4898d29e336e2cc7a25f0",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "bench_gpu.h": "d4c1768e855c3dbf4b96ab3a5e77d8b7254ddcc576c6049274d3d8c0361c77f3",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5",
+            "rg_gpu.h": "f1743f9087eba2f0c4989f9198cb0290840dc7781c294f6f394e94d14e6eaffa"
+          },
+          "executable_sha256": "d85b5623356a2af09cb8e59a6c00579b50e68be4f221fb2a7b2ce9e115277137",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 1,
+        "gpu": "vulkan",
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": false,
+        "per_category": 16
+      },
+      "available_input_images": 128,
+      "private_assets": true,
+      "processed_images": 128,
+      "gpu": [
+        "GPU backend=vulkan device=NVIDIA GeForce RTX 2060 driver=595.97.0.0 SDL=3004010",
+        "GPU_REUSE alternating-content=passed slots=3 rounds=4"
+      ]
+    },
+    "generated_cpu": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-26T00:25:41Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "baseline": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "06d094536024338e18bc676951b25ab29946e31ca7f1b49267bf0916eec9e212",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "0abd81ab715065aa7bff516f6aa6994e13949d353f7d3971b49d9bd63d652008",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "7d81020473828319f804c876c738ae4186d59f19edf4f3d59ea5453cc32b2c57",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 3,
+        "gpu": null,
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": false,
+        "per_category": null
+      },
+      "available_input_images": 9,
+      "private_assets": false,
+      "processed_images": 9,
+      "rgi_size_hash_profile_matches": 27
+    },
+    "generated_pixel_art_cpu": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-25T22:01:56Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "baseline": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "06d094536024338e18bc676951b25ab29946e31ca7f1b49267bf0916eec9e212",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "d80b8745e73432033c9127d2a485f4d2f9363872aba8f56e23af5feef7f1ab98",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6df95cac3075522f5bd41a884e74384566af5b3b355fa51731b35663a2de1dd9",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "eda6a7eb005ebaea8dfe30adb9a53b8d1dcaa46db0ff9a29b8cef5a5f621d19f",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "16dd2cc5790e32303e9cd14e290d3241794970949cba106f6975f43de25bf885",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 3,
+        "gpu": null,
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": false,
+        "per_category": null
+      },
+      "available_input_images": 9,
+      "private_assets": false,
+      "processed_images": 3,
+      "rgi_size_hash_profile_matches": 9
+    },
+    "encoder_stages": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "machine": "AMD64",
+      "cpu_name": "12th Gen Intel(R) Core(TM) i7-12700KF",
+      "utc": "2026-09-26T00:26:25Z",
+      "revision": "14e48b2970aacfce45d852708cbefaeaf3f91fe8",
+      "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
+      "builds": {
+        "baseline": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "06d094536024338e18bc676951b25ab29946e31ca7f1b49267bf0916eec9e212",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "bc76a93e5242130fb8d214f8a733368588982e812c79264fa2a7de6837b0a07d",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "libpng16_static.lib": "c9952acffce37231e04f1c6eb2034919a3ae3aa19956a55ced87dc5d3ceb9098",
+            "zs.lib": "5f9893334a881f7fa0521f1425bcd4eb90f31f23d11db8497876f743d32280a4",
+            "bench_image.c": "6e4bda06e918b18fa1b76bccbbef8be04a50f93aeaef4603dcacb1d4d3242e17",
+            "bench_sink.c": "63fc1a04cbd36278b68351b06a877a2ee5867b83129a82a7c2533947da05f1a4",
+            "bench_codecs.h": "3cb3603d863fe769c8c0add741b5cf3acbdf3b2e8f896f0ae7854e34a12851bf",
+            "rg_rgi.h": "c710f8762844e2219edaf290f9bbd34adc4084877ddabf86cbbea07acab3c6fe",
+            "stb_image.h": "1f8c1b6b408f26e3b20cbfbbd4758afb3dc9b837ff1e17c258928f406148a87c",
+            "stb_image_write.h": "17f339e7582ff4d4d56e40b0e87d77eda8d8f8e62806278ddf8fcf0b8b3d9a84",
+            "qoi.h": "0b0749c8259f21bf01b3e127e4079ddcd9ddbaf8f6445c9b4ad268cf976181fb",
+            "rg_defs.h": "0991138f2d6cdf8c8f0daae62a4c9761d4d9074e745e825a31c59789b7eadda6",
+            "rg_time.h": "94554d144d175b19b08bef87d4936ecdfa681ad4cd7b2edac76fa5660f2c91a5"
+          },
+          "executable_sha256": "266c90d13ebb707d19724687721abc29bf4050f42940ae0122d5f5e5ae388995",
+          "compiler": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35219 for x64\nCopyright (C) Microsoft Corporation.  All rights reserved.\n\nCompiler Passes:\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c2.dll:        Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\c1xx.dll:      Version 19.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe:      Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\mspdb140.dll:  Version 14.44.35219.0\n C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\1033\\clui.dll: Version 19.44.35219.0\n\ncl : Command line error D8003 : missing source filename"
+        }
+      },
+      "settings": {
+        "samples": 7,
+        "iterations": 1,
+        "runs": 1,
+        "gpu": null,
+        "scalar": false,
+        "no_libpng": false,
+        "decode_only": false,
+        "profile_encoder": true,
+        "per_category": null
+      },
+      "available_input_images": 9,
+      "private_assets": false,
+      "processed_images": 3
+    }
+  }
+}

@@ -1,7 +1,7 @@
 # Third-party notices
 
 The public RGI runtime in `src/rg_rgi.h` does not use these dependencies. They
-are vendored only for the PNG converter and deterministic benchmark.
+are used only for tools and benchmarks.
 
 ## stb_image 2.30
 
@@ -29,4 +29,17 @@ validate the Adler-32 checksum on PNG IDAT zlib streams.
 
 `third_party/qoi/qoi.h` is copyright Dominic Szablewski and is distributed
 under the MIT license in `third_party/qoi/LICENSE`. It is used only by the
-deterministic benchmark comparison.
+benchmark comparison and conversion tools.
+
+## Downloaded benchmark dependencies and images
+
+`tools/prepare_bench.py` optionally downloads libpng 1.6.58 (the PNG Reference
+Library License v2), zlib 1.3.2 (the zlib license), and the Windows SDL 3.4.14
+SDK (the zlib license). Distributions retain upstream license files under
+ignored `build/bench-deps/`; none is vendored here or required by the runtime.
+Download URLs and SHA256 values are in the script.
+
+The optional [QOI benchmark corpus](https://qoiformat.org/benchmark/) contains
+third-party images with their own provenance and terms. Downloaded images and
+accompanying notices stay in ignored `build/`. Private game assets are read
+from their original location and are not distributed by this repository.

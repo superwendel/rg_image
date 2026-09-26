@@ -5,7 +5,10 @@
 //   test_rgi.exe test
 //   test_rgi.exe decode <input.rgi> <output.rgba>
 
-#include "../src/rg_rgi.h"
+#ifndef RG_RGI_TEST_HEADER
+#define RG_RGI_TEST_HEADER "../src/rg_rgi.h"
+#endif
+#include RG_RGI_TEST_HEADER
 
 #include <stdint.h>
 #include <stdio.h>
@@ -610,6 +613,152 @@ static void test_encode_workspace(void)
 // Runner
 // =============================================================================
 
+static void test_copy_match_boundaries(void)
+{
+    uint8_t storage[2201];
+    uint8_t* pixels = storage + 1u;
+    const size_t lengths[] = {4u, 5u, 7u, 8u, 15u, 16u, 258u, 259u};
+    for (size_t test = 0; test < sizeof(lengths) / sizeof(lengths[0]); ++test)
+    {
+        size_t length = lengths[test];
+        for (size_t i = 0; i < 550u; ++i)
+        {
+            pixels[i * 4u] = (uint8_t)i;
+            pixels[i * 4u + 1u] = (uint8_t)(i >> 8u);
+            pixels[i * 4u + 2u] = 71u;
+            pixels[i * 4u + 3u] = 255u;
+        }
+        memcpy(pixels + 280u * 4u, pixels, length * 4u);
+        size_t best = 0;
+        uint16_t offset = 0;
+        rg_rgi_consider_copy_candidate(pixels, 550u, 280u, 0u, &best, &offset);
+        TEST_ASSERT(best == length && offset == 280u, "unaligned match length and tail");
+        offset = 123u;
+        rg_rgi_consider_copy_candidate(pixels, 550u, 280u, 0u, &best, &offset);
+        TEST_ASSERT(best == length && offset == 123u, "equal length preserves earlier candidate");
+        best = length - 1u;
+        rg_rgi_consider_copy_candidate(pixels, 280u + length, 280u, 0u, &best, &offset);
+        TEST_ASSERT(best == length && offset == 280u, "match at input boundary");
+    }
+    size_t best = 0;
+    uint16_t offset = 0;
+    rg_rgi_consider_copy_candidate(pixels, 550u, 280u, 278u, &best, &offset);
+    TEST_ASSERT(best == 0u, "overlapping short candidate rejected");
+    const size_t distant_count = 65536u + RG_RGI_COPY_MAX;
+    uint8_t* distant = (uint8_t*)calloc(distant_count, 4u);
+    TEST_ASSERT(distant != NULL, "distant copy allocation");
+    rg_rgi_consider_copy_candidate(distant, distant_count, 65535u, 0u, &best, &offset);
+    TEST_ASSERT(best == RG_RGI_COPY_MAX && offset == 65535u, "maximum legal copy offset");
+    best = 0u;
+    offset = 0u;
+    rg_rgi_consider_copy_candidate(distant, distant_count, 65536u, 0u, &best, &offset);
+    TEST_ASSERT(best == 0u && offset == 0u, "copy offset beyond wire limit rejected");
+    free(distant);
+    TEST_PASS();
+}
+
+static void test_profile_estimate_cutoff(void)
+{
+    uint8_t pixels[64u * 17u * 4u];
+    uint32_t state = 0x13579bdfu;
+    for (size_t i = 0; i < sizeof(pixels); ++i)
+    {
+        state ^= state << 13u; state ^= state >> 17u; state ^= state << 5u;
+        pixels[i] = (uint8_t)state;
+    }
+    RgRgiEncodeWorkspace* workspace = (RgRgiEncodeWorkspace*)malloc(sizeof(*workspace));
+    TEST_ASSERT(workspace != NULL, "estimate workspace allocated");
+    memset(workspace, 0xa5, sizeof(*workspace));
+    size_t full = rg_rgi_estimate_rawspan_payload_size_min_copy(pixels, 64u * 17u, 64u,
+                                                               1, RG_RGI_COPY_MIN, &workspace->table);
+    const size_t limits[] = {0u, 1u, 2u, 64u, 1024u, SIZE_MAX};
+    for (size_t i = 0; i < sizeof(limits) / sizeof(limits[0]); ++i)
+    {
+        size_t result = rg_rgi__estimate_rawspan_payload_size_bounded(pixels, 64u * 17u, 64u,
+                                                                    1, RG_RGI_COPY_MIN, &workspace->table, limits[i]);
+        TEST_ASSERT(full < limits[i] ? result == full : result >= limits[i], "bounded estimate preserves selection");
+    }
+    size_t exact = rg_rgi__estimate_rawspan_payload_size_bounded(pixels, 64u * 17u, 64u,
+                                                                1, RG_RGI_COPY_MIN, &workspace->table, full);
+    TEST_ASSERT(exact == full, "exact estimate threshold");
+    size_t bound = rg_rgi_encode_bound(64u, 17u);
+    uint8_t* first = (uint8_t*)malloc(bound);
+    uint8_t* second = (uint8_t*)malloc(bound);
+    TEST_ASSERT(first && second, "encode output allocated");
+    size_t a = rg_rgi_encode_with_workspace(pixels, 64u, 17u, first, bound, workspace, sizeof(*workspace));
+    memset(workspace, 0x5a, sizeof(*workspace));
+    size_t b = rg_rgi_encode_with_workspace(pixels, 64u, 17u, second, bound, workspace, sizeof(*workspace));
+    TEST_ASSERT(a && a == b && memcmp(first, second, a) == 0, "dirty workspace does not affect encoding");
+    free(second); free(first); free(workspace);
+    TEST_PASS();
+}
+
+static void test_all_truncations(void)
+{
+    uint8_t guarded[sizeof(k_sample_pixels) + 2u];
+    for (size_t length = 0; length < sizeof(k_sample_rgi); ++length)
+    {
+        memset(guarded, 0xa5, sizeof(guarded));
+        TEST_ASSERT(rg_rgi_decode(k_sample_rgi, length, guarded + 1u,
+                                  sizeof(k_sample_pixels), NULL, NULL) == 0u, "every truncated prefix rejected");
+        TEST_ASSERT(guarded[0] == 0xa5u && guarded[sizeof(guarded) - 1u] == 0xa5u, "truncated decode keeps output guards");
+    }
+    TEST_PASS();
+}
+
+static void test_run_store_boundaries(void)
+{
+    const size_t counts[] = {1u, 3u, 4u, 7u, 15u, 16u, 17u, 59u, 60u, 62u, 255u, 259u, 65535u};
+    uint8_t* guarded = (uint8_t*)malloc(65535u * 4u + 2u);
+    TEST_ASSERT(guarded != NULL, "run output allocated");
+    for (size_t test = 0; test < sizeof(counts) / sizeof(counts[0]); ++test)
+    {
+        size_t count = counts[test];
+        memset(guarded, 0xa5, count * 4u + 2u);
+        rg_rgi_store_run_rgba_u32(guarded + 1u, count, UINT32_C(0x7f332211));
+        for (size_t i = 0; i < count; ++i)
+        {
+            const uint8_t* pixel = guarded + 1u + i * 4u;
+            TEST_ASSERT(pixel[0] == 0x11u && pixel[1] == 0x22u && pixel[2] == 0x33u && pixel[3] == 0x7fu,
+                        "unaligned run pixels exact");
+        }
+        TEST_ASSERT(guarded[0] == 0xa5u && guarded[count * 4u + 1u] == 0xa5u, "run stores keep output guards");
+    }
+    free(guarded);
+    TEST_PASS();
+}
+
+static void test_legacy_fixture(void)
+{
+    uint8_t* data = NULL;
+    size_t size = 0;
+    TEST_ASSERT(read_file("tests/fixtures/legacy/baseline/odd-small.rgi", &data, &size), "load pre-optimization fixture");
+    uint8_t expected[17u * 19u * 4u];
+    uint8_t decoded[sizeof(expected)];
+    for (uint32_t y = 0; y < 19u; ++y)
+    {
+        for (uint32_t x = 0; x < 17u; ++x)
+        {
+            size_t offset = ((size_t)y * 17u + x) * 4u;
+            expected[offset] = (uint8_t)x;
+            expected[offset + 1u] = (uint8_t)y;
+            expected[offset + 2u] = (uint8_t)(x + y);
+            expected[offset + 3u] = (uint8_t)(x * 13u + y * 7u);
+        }
+    }
+    TEST_ASSERT(rg_rgi_decode(data, size, decoded, sizeof(decoded), NULL, NULL) == sizeof(decoded), "legacy checked decode");
+    TEST_ASSERT(memcmp(expected, decoded, sizeof(decoded)) == 0, "legacy checked pixels exact");
+    TEST_ASSERT(rg_rgi_decode_trusted(data, size, decoded, sizeof(decoded), NULL, NULL) == sizeof(decoded), "legacy trusted decode");
+    TEST_ASSERT(memcmp(expected, decoded, sizeof(decoded)) == 0, "legacy trusted pixels exact");
+    size_t bound = rg_rgi_encode_bound(17u, 19u);
+    uint8_t* encoded = (uint8_t*)malloc(bound);
+    TEST_ASSERT(encoded != NULL, "legacy reencode allocated");
+    size_t written = rg_rgi_encode(expected, 17u, 19u, encoded, bound);
+    TEST_ASSERT(written == size && memcmp(encoded, data, size) == 0, "legacy encoder bytes unchanged");
+    free(encoded); free(data);
+    TEST_PASS();
+}
+
 static void run_all_tests(void)
 {
     test_header_validation();
@@ -624,6 +773,11 @@ static void run_all_tests(void)
     test_decode_truncated();
     test_wire_contract();
     test_encode_workspace();
+    test_copy_match_boundaries();
+    test_profile_estimate_cutoff();
+    test_all_truncations();
+    test_run_store_boundaries();
+    test_legacy_fixture();
 }
 
 int main(int argc, char** argv)

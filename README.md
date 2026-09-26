@@ -103,12 +103,13 @@ build.bat bench
 
 The aggregate test covers checked and trusted decode, both profiles, malformed
 streams, workspace encoding, converter round trips, C++ inclusion, and
-tool builds. The benchmark corpus is generated deterministically in memory and
-compares automatic RGI with the QOI reference codec and PNG via stb; results are
-machine- and workload-specific, so the benchmark prints its seed, corpus
-dimensions, byte totals, and timing method with every run. See
-[`docs/benchmarks.md`](docs/benchmarks.md) for the exact methodology and
-preparation snapshot.
+tool builds. The benchmark runner compares RGI, reference QOI, stb PNG, and
+optional libpng on generated pixel art, the public QOI corpus, or local assets.
+It supports paired comparisons, reusable buffers, and SDL GPU upload completion
+on D3D12 and Vulkan. Private assets are read in place and their results stay
+under ignored `build/`. See [`docs/benchmarks.md`](docs/benchmarks.md) for setup
+and methodology, and [`docs/benchmark-results.md`](docs/benchmark-results.md)
+for measured results.
 
 ## Third-party code
 

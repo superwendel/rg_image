@@ -26,6 +26,11 @@ IF /I "%~1"=="rgi_viewer" GOTO rgi_viewer
 IF /I "%~1"=="rgi_thumbnail" GOTO rgi_thumbnail
 IF /I "%~1"=="tools" GOTO tools
 IF /I "%~1"=="bench" GOTO bench
+IF /I "%~1"=="bench_corpus" GOTO bench_external
+IF /I "%~1"=="bench_gpu" GOTO bench_external
+IF /I "%~1"=="bench_profile" GOTO bench_external
+IF /I "%~1"=="test_gpu" GOTO bench_external
+IF /I "%~1"=="test_bench" GOTO test_bench
 GOTO help_error
 
 :test
@@ -111,9 +116,15 @@ ECHO Built rgi_thumbnail.dll
 EXIT /B 0
 
 :bench
-cl %BASE_FLAGS% %OPT_FLAGS% tests\bench_rgi.c /Fe:bench_rgi.exe
-IF ERRORLEVEL 1 EXIT /B 1
-bench_rgi.exe
+python benchmarks\run.py %* --no-libpng
+EXIT /B %ERRORLEVEL%
+
+:bench_external
+python benchmarks\run.py %*
+EXIT /B %ERRORLEVEL%
+
+:test_bench
+python -m unittest discover -s tests -p test_bench.py
 EXIT /B %ERRORLEVEL%
 
 :help
@@ -121,7 +132,9 @@ ECHO Usage: build.bat ^<target^>
 ECHO.
 ECHO Tests: test, test_rgi, test_scalar, test_cpp, test_allocator, test_tools
 ECHO Tools: rgi_convert, rgi_viewer, rgi_thumbnail, tools
-ECHO Other: example, bench
+ECHO Benchmarks: bench, bench_corpus, bench_gpu, bench_profile
+ECHO Benchmark checks: test_bench, test_gpu
+ECHO Other: example
 EXIT /B 0
 
 :help_error

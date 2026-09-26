@@ -3,6 +3,8 @@
 
 # Local build and staged tool output
 /build/
+# Python tooling caches (corpora and private benchmark results stay in /build/).
+__pycache__/
 *.tmp.*
 
 # Object files

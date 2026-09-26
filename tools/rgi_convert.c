@@ -25,7 +25,14 @@
 #define STBI_NO_STDIO
 #define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 #include "../third_party/stb_image.h"
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #include "../third_party/miniz/miniz_tinfl.h"
 
 #include <stdint.h>

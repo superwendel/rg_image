@@ -412,6 +412,17 @@ RGINLINE void rg_rgi_copy_table_insert_range(RgRgiCopyTable* table,
     }
 }
 
+RGINLINE int rg_rgi__copy_equal4(const uint8_t* a, const uint8_t* b)
+{
+    // memcpy permits unaligned input and avoids effective-type aliasing.
+    uint64_t a0, b0, a1, b1;
+    memcpy(&a0, a, sizeof(a0));
+    memcpy(&b0, b, sizeof(b0));
+    memcpy(&a1, a + 8u, sizeof(a1));
+    memcpy(&b1, b + 8u, sizeof(b1));
+    return a0 == b0 && a1 == b1;
+}
+
 RGINLINE void rg_rgi_consider_copy_candidate(const uint8_t* pixels,
                                              uint64_t pixel_count,
                                              uint64_t pos,
@@ -443,10 +454,29 @@ RGINLINE void rg_rgi_consider_copy_candidate(const uint8_t* pixels,
         return;
     }
 
-    size_t count = 0u;
+    const uint8_t* source = pixels + src * 4u;
+    const uint8_t* target = pixels + pos * 4u;
+    // A candidate must beat the existing match, not merely tie it. This test
+    // preserves candidate order and therefore the original encoded stream.
+    if (*best_count >= RG_RGI_COPY_MIN &&
+        rg_rgi_load_u32_le(source + *best_count * 4u) !=
+        rg_rgi_load_u32_le(target + *best_count * 4u))
+    {
+        return;
+    }
+    if (!rg_rgi__copy_equal4(source, target))
+    {
+        return;
+    }
+    size_t count = RG_RGI_COPY_MIN;
+    while ((uint64_t)count + 4u <= max_count &&
+           rg_rgi__copy_equal4(source + count * 4u, target + count * 4u))
+    {
+        count += 4u;
+    }
     while ((uint64_t)count < max_count &&
-           rg_rgi_load_u32_le(pixels + (src + (uint64_t)count) * 4u) ==
-           rg_rgi_load_u32_le(pixels + (pos + (uint64_t)count) * 4u))
+           rg_rgi_load_u32_le(source + count * 4u) ==
+           rg_rgi_load_u32_le(target + count * 4u))
     {
         count++;
     }
@@ -465,13 +495,17 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
                                  uint64_t pos,
                                  uint16_t* out_offset)
 {
-    if (table == NULL || out_offset == NULL || pos + RG_RGI_COPY_MIN > pixel_count)
+    if (table == NULL || out_offset == NULL || pos < RG_RGI_COPY_MIN ||
+        pos + RG_RGI_COPY_MIN > pixel_count)
     {
         return 0u;
     }
 
     size_t best_count = 0u;
     uint16_t best_offset = 0u;
+    uint64_t maximum = pixel_count - pos;
+    if (maximum > RG_RGI_COPY_MAX) maximum = RG_RGI_COPY_MAX;
+    if (maximum > pos) maximum = pos;
     uint32_t hash = rg_rgi_hash_copy4(pixels, pos);
     uint8_t count = table->counts[hash];
     for (uint8_t i = 0u; i < count; i++)
@@ -485,6 +519,11 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
                                            entry - 1u,
                                            &best_count,
                                            &best_offset);
+            if (best_count == maximum)
+            {
+                *out_offset = best_offset;
+                return best_count;
+            }
         }
     }
 
@@ -492,7 +531,8 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
     {
         uint64_t row_width = (uint64_t)width;
         uint64_t same_x = row_width;
-        for (uint32_t row = 0u; row < RG_RGI_COPY_PREV_ROW_SEARCH && same_x <= pos; row++)
+        for (uint32_t row = 0u; row < RG_RGI_COPY_PREV_ROW_SEARCH &&
+             same_x <= pos && same_x <= RG_RGI_COPY_MAX_OFFSET; row++)
         {
             rg_rgi_consider_copy_candidate(pixels,
                                            pixel_count,
@@ -500,6 +540,11 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
                                            pos - same_x,
                                            &best_count,
                                            &best_offset);
+            if (best_count == maximum)
+            {
+                *out_offset = best_offset;
+                return best_count;
+            }
             same_x += row_width;
         }
 
@@ -511,7 +556,11 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
         {
             scan_start = row_start;
         }
-        for (uint64_t src = pos; src > scan_start;)
+        if (pos > RG_RGI_COPY_MAX_OFFSET && scan_start < pos - RG_RGI_COPY_MAX_OFFSET)
+        {
+            scan_start = pos - RG_RGI_COPY_MAX_OFFSET;
+        }
+        for (uint64_t src = pos - (RG_RGI_COPY_MIN - 1u); src > scan_start;)
         {
             src--;
             rg_rgi_consider_copy_candidate(pixels,
@@ -520,6 +569,11 @@ RGINLINE size_t rg_rgi_find_copy(const RgRgiCopyTable* table,
                                            src,
                                            &best_count,
                                            &best_offset);
+            if (best_count == maximum)
+            {
+                *out_offset = best_offset;
+                return best_count;
+            }
         }
     }
 
@@ -822,18 +876,20 @@ RGINLINE size_t rg_rgi_encode_qoi_payload(const uint8_t* pixels, uint64_t pixel_
     return (size_t)(ptr - start);
 }
 
-RGINLINE size_t rg_rgi_estimate_rawspan_payload_size_min_copy(const uint8_t* pixels,
+RGINLINE size_t rg_rgi__estimate_rawspan_payload_size_bounded(const uint8_t* pixels,
                                                               uint64_t pixel_count,
                                                               uint32_t width,
                                                               int use_copy,
                                                               size_t min_copy,
-                                                              RgRgiCopyTable* copy_table)
+                                                              RgRgiCopyTable* copy_table,
+                                                              size_t size_limit)
 {
     uint32_t index[64];
     memset(index, 0, sizeof(index));
     if (use_copy)
     {
-        memset(copy_table, 0, sizeof(*copy_table));
+        // Buckets beyond counts[hash] are never read; retain their storage.
+        memset(copy_table->counts, 0, sizeof(copy_table->counts));
     }
     uint32_t px = 0xff000000u;
     size_t size = 0u;
@@ -844,6 +900,9 @@ RGINLINE size_t rg_rgi_estimate_rawspan_payload_size_min_copy(const uint8_t* pix
 
     for (uint64_t i = 0u; i < pixel_count;)
     {
+        // The estimate only grows. Once it cannot beat profile 0, the
+        // remaining searches cannot change automatic profile selection.
+        if (size >= size_limit) return size;
         uint32_t cur = rg_rgi_load_u32_le(pixels + i * 4u);
         if (cur == px)
         {
@@ -942,6 +1001,17 @@ RGINLINE size_t rg_rgi_estimate_rawspan_payload_size_min_copy(const uint8_t* pix
     return size;
 }
 
+RGINLINE size_t rg_rgi_estimate_rawspan_payload_size_min_copy(const uint8_t* pixels,
+                                                              uint64_t pixel_count,
+                                                              uint32_t width,
+                                                              int use_copy,
+                                                              size_t min_copy,
+                                                              RgRgiCopyTable* copy_table)
+{
+    return rg_rgi__estimate_rawspan_payload_size_bounded(pixels, pixel_count, width,
+                                                        use_copy, min_copy, copy_table, SIZE_MAX);
+}
+
 RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
                                                        uint64_t pixel_count,
                                                        uint32_t width,
@@ -955,7 +1025,7 @@ RGINLINE size_t rg_rgi_encode_rawspan_payload_min_copy(const uint8_t* pixels,
     memset(index, 0, sizeof(index));
     if (use_copy)
     {
-        memset(copy_table, 0, sizeof(*copy_table));
+        memset(copy_table->counts, 0, sizeof(copy_table->counts));
     }
     uint32_t px = 0xff000000u;
     if (min_copy < RG_RGI_COPY_MIN)
@@ -1689,12 +1759,13 @@ RGINLINE size_t rg_rgi_encode_with_workspace(const void* rgba,
 
     size_t baseline_payload_size = (size_t)(ptr - (out + RG_RGI_HEADER_SIZE));
     size_t baseline_size = RG_RGI_HEADER_SIZE + baseline_payload_size + RG_RGI_END_SIZE;
-    size_t copy_payload_size = rg_rgi_estimate_rawspan_payload_size_min_copy(pixels,
+    size_t copy_payload_size = rg_rgi__estimate_rawspan_payload_size_bounded(pixels,
                                                                              pixel_count,
                                                                              width,
                                                                              1,
                                                                              RG_RGI_COPY_MIN,
-                                                                             copy_table);
+                                                                             copy_table,
+                                                                             baseline_payload_size);
     size_t copy_size = RG_RGI_HEADER_SIZE + copy_payload_size + RG_RGI_END_SIZE;
 
     if (copy_size < baseline_size)
