@@ -167,7 +167,4 @@ part of the public runtime dependency graph.
 ## License and trademark
 
 The software and documentation are available under the [MIT License](LICENSE).
-Reverse Gravity is a registered trademark of Steven Wendel in the United
-States. The license grants rights to the software and documentation, but not to
-the Reverse Gravity name or trademark except to identify the origin of this
-software.
+See the separate [trademark notice](TRADEMARK.md) for the Reverse Gravity name.
