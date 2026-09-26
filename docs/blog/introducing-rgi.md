@@ -80,8 +80,8 @@ the generated libpng output. Against the optimized RGI encoder restricted
 to profiles 0/1, adding palette selection reduces total size by 18.25% and
 the aggregate allocated decode time by 5.66%. Those are whole-corpus
 aggregates, not promises for individual images or game startup. The
-[current results](../optimization-followup.md#native-mana-artwork-follow-up)
-and [CSV](../optimization-followup.csv) contain the underlying totals.
+[current results](../performance-results.md#pixel-art-cpu-results)
+and [CSV](../performance-results.csv) contain the underlying totals.
 
 I also used the public QOI benchmark corpus to look beyond game art.
 Its downloaded archive contains 2,848 images; 2,847 fit RGI's dimensions.
@@ -92,7 +92,7 @@ with 4.43% fewer encoded bytes. RGI files were 4.63% larger than generated
 libpng output, and the original PNG files were smaller still. Those mixed-corpus
 results are separate from the pixel-art results. Photographs remain useful
 stress cases, and PNG keeps a compression advantage across this broader
-collection. The [public-corpus report](../optimization-followup.md#full-public-corpus-timing-method)
+collection. The [public-corpus report](../performance-results.md#public-qoi-corpus)
 includes original-PNG decode results as well.
 
 Encoding is the conspicuous cost. On a separate, repeatedly measured
@@ -119,6 +119,4 @@ remain readable, while older readers need updating for profile 2.
 `RG_RGI_NO_PALETTE_ENCODE` keeps output compatible with those older readers.
 The [getting-started instructions](../../README.md#quick-start),
 [wire specification](../rgi_format.md), and
-[SDL3 viewer](../../README.md#rgi-viewer) are in the repository. My next
-question for any project adopting RGI would be the same one that shaped it:
-what happens on the images your game actually loads?
+[SDL3 viewer](../../README.md#rgi-viewer) are in the repository.

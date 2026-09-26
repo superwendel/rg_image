@@ -2,7 +2,7 @@
 
 > Historical report: this measures the initial profile-0/1 encoder optimization,
 > before profile 2 was added. For the current codec, palette results, full public
-> corpus, and native game assets, see the [optimization follow-up](optimization-followup.md).
+> corpus, and game assets, see the [performance results](performance-results.md).
 > New profile-2 files require an updated reader; see [compatibility](rgi_format.md).
 
 The change measured here speeds encoding without changing the decoder, wire format,

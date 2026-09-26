@@ -3,7 +3,8 @@
 Pixel art is the primary workload: sprites, transparent UI, tilemaps, and
 animation sheets. Photographs are secondary stress tests. All codecs must
 preserve canonical RGBA8 pixels exactly, including RGB under zero alpha.
-See [measured results](benchmark-results.md) for decisions and hardware.
+See [performance results](performance-results.md) for current measurements,
+hardware, and workload limitations.
 Timings are not directly comparable to the [QOI website](https://qoiformat.org/benchmark/).
 
 ## Running

@@ -151,11 +151,11 @@ optional libpng on generated pixel art, the public QOI corpus, or local assets.
 It supports paired comparisons, reusable buffers, and SDL GPU upload completion
 on D3D12 and Vulkan. Private assets are read in place and their results stay
 under ignored `build/`. See [`docs/benchmarks.md`](docs/benchmarks.md) for setup
-and methodology. The [initial encoder report](docs/benchmark-results.md)
-is historical and predates palette support.
-The [optimization follow-up](docs/optimization-followup.md) records mixed-image
-GPU loading, single-pass COPY search, and the production palette profile on
-pixel art, including its size/decode gains and encoding tradeoff.
+and methodology. The [performance results](docs/performance-results.md) compare
+the current codec with QOI and PNG on a private pixel-art library and the public
+QOI corpus, including encoding cost, GPU uploads, and measurement limits.
+The [initial encoder report](docs/benchmark-results.md) is historical and
+predates palette support.
 
 ## Third-party code
 

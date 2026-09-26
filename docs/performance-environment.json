@@ -161,7 +161,7 @@
       "GPU_REUSE mixed-dimensions=passed slots=3 rounds=6 allocated+reused+direct+premultiplied"
     ]
   },
-  "phase2-encoder-mana": {
+  "historical-encoder-private-art": {
     "utc": "2026-09-26T01:17:42Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -488,7 +488,7 @@
     },
     "gpu": []
   },
-  "phase2-palette-mana": {
+  "historical-palette-private-art": {
     "utc": "2026-09-26T01:42:05Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -653,7 +653,7 @@
       "auto_bytes": 1471045
     }
   },
-  "profile2-mana": {
+  "private-source-art": {
     "utc": "2026-09-26T02:02:49Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -2314,7 +2314,7 @@
     },
     "gpu": []
   },
-  "mana-native-cpu": {
+  "private-game-assets-cpu": {
     "utc": "2026-09-26T09:57:43Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -2692,7 +2692,7 @@
       "groups_affected_count": 1
     }
   },
-  "mana-native-scenes-d3d12": {
+  "private-game-assets-d3d12": {
     "utc": "2026-09-26T10:13:30Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -3125,7 +3125,7 @@
       "groups_affected_count": 0
     }
   },
-  "mana-native-scenes-vulkan": {
+  "private-game-assets-vulkan": {
     "utc": "2026-09-26T10:31:01Z",
     "revision": "ed45fad20a2a0da994e9e1928178fe28051f2d63",
     "core_revision": "d5d3f4413da22568572a37f5c6bf4e0506c68a2a",
@@ -3949,15 +3949,5 @@
         ]
       }
     }
-  },
-  "mana_runtime_review": {
-    "source_root": "private sibling Mana repository",
-    "files": {
-      "main.c": "c7695652874b97265c698b12bd35c10b9af2922145fb654d80ace01e47c3baa5",
-      "gpulib.h": "c319e7b62862eb91a333e6bc2c051c44178aafef2cf41815b2bc605d692158be",
-      "game_app_lifecycle_render.c": "29678ee4f06058ec3ca34d1c773b222b53cfe383f06a6c82bcc56c08cb4b20cd"
-    },
-    "observed_path": "allocated CPU checked RGBA decode, memcpy to fresh GPU transfer buffer, individually submitted RGBA8 upload; automatic SDL backend",
-    "scope": "source inspection only, no game startup timing or sibling edits"
   }
 }
